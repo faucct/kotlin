@@ -120,9 +120,10 @@ object FirFakeOverrideGenerator {
         newModality: Modality? = null,
         newVisibility: Visibility? = null,
         callableCopySubstitutionForTypeUpdater: CallableCopySubstitution? = null,
+        source: KtSourceElement? = derivedClassLookupTag?.toSymbol(session)?.source ?: baseFunction.source,
         copyDefaultValues: Boolean = false,
     ): FirSimpleFunction = buildSimpleFunction {
-        source = derivedClassLookupTag?.toSymbol(session)?.source ?: baseFunction.source
+        this.source = source
         moduleData = session.nullableModuleData ?: baseFunction.moduleData
         this.origin = origin
         name = baseFunction.name
@@ -395,15 +396,16 @@ object FirFakeOverrideGenerator {
         newModality: Modality? = null,
         newVisibility: Visibility? = null,
         callableCopySubstitutionForTypeUpdater: CallableCopySubstitution? = null,
+        source: KtSourceElement? = derivedClassLookupTag?.toSymbol(session)?.source ?: baseProperty.source,
     ): FirProperty = buildProperty {
-        source = derivedClassLookupTag?.toSymbol(session)?.source ?: baseProperty.source
-        moduleData = session.nullableModuleData ?: baseProperty.moduleData
-        this.origin = origin
-        name = baseProperty.name
-        isVar = baseProperty.isVar
-        this.symbol = newSymbol
-        isLocal = false
-        status = baseProperty.status.copy(newVisibility, newModality, isExpect = isExpect)
+        this.source = source
+            moduleData = session.nullableModuleData ?: baseProperty.moduleData
+            this.origin = origin
+            name = baseProperty.name
+            isVar = baseProperty.isVar
+            this.symbol = newSymbol
+            isLocal = false
+            status = baseProperty.status.copy(newVisibility, newModality, isExpect = isExpect)
 
         resolvePhase = origin.resolvePhaseForCopy
         dispatchReceiverType = newDispatchReceiverType
