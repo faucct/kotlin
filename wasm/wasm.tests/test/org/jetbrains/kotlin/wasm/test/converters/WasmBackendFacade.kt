@@ -109,6 +109,7 @@ class WasmBackendFacade(
             baseFileName = baseFileName,
             emitNameSection = true,
             allowIncompleteImplementations = false,
+            initialization = true,
             generateWat = generateWat,
             generateSourceMaps = generateSourceMaps
         )
@@ -124,6 +125,7 @@ class WasmBackendFacade(
             baseFileName = baseFileName,
             emitNameSection = true,
             allowIncompleteImplementations = true,
+            initialization = true,
             generateWat = generateWat,
             generateSourceMaps = generateSourceMaps
         )
