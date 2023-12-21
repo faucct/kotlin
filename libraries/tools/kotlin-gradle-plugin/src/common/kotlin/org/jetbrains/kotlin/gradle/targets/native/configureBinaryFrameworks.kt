@@ -45,7 +45,7 @@ internal fun Project.createFrameworkArtifact(binaryFramework: Framework, linkTas
         ?: configurations.createConsumable(binaryFramework.binaryFrameworkConfigurationName).also {
             it.applyBinaryFrameworkGroupAttributes(project, binaryFramework.frameworkGroupDescription, listOf(binaryFramework.target))
             project.launchInStage(KotlinPluginLifecycle.Stage.FinaliseDsl) {
-                copyAttributes(binaryFramework.attributes, it.attributes)
+                binaryFramework.copyAttributesTo(project, dest = it)
             }
         }
 
@@ -78,11 +78,11 @@ private fun Configuration.applyBinaryFrameworkGroupAttributes(
     targets: List<KotlinNativeTarget>,
 ) {
     with(attributes) {
-        attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
-        attribute(project.artifactTypeAttribute, KotlinNativeTargetConfigurator.NativeArtifactFormat.FRAMEWORK)
-        attribute(KotlinNativeTarget.kotlinNativeBuildTypeAttribute, frameworkDescription.buildType.name)
-        attribute(KotlinNativeTarget.kotlinNativeFrameworkNameAttribute, frameworkDescription.frameworkName)
-        attribute(Framework.frameworkTargets, targets.map { it.konanTarget.name }.toSet())
+        setAttribute(project, KotlinPlatformType.attribute) { KotlinPlatformType.native }
+        setAttribute(project, project.artifactTypeAttribute) { KotlinNativeTargetConfigurator.NativeArtifactFormat.FRAMEWORK }
+        setAttribute(project, KotlinNativeTarget.kotlinNativeBuildTypeAttribute) { frameworkDescription.buildType.name }
+        setAttribute(project, KotlinNativeTarget.kotlinNativeFrameworkNameAttribute) { frameworkDescription.frameworkName }
+        setAttribute(project, Framework.frameworkTargets) { targets.map { it.konanTarget.name }.toSet() }
     }
 }
 

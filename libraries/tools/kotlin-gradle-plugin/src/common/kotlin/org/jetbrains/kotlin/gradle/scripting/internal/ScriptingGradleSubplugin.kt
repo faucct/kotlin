@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.gradle.scripting.ScriptingExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.utils.maybeCreateDependencyScope
 import org.jetbrains.kotlin.gradle.utils.maybeCreateResolvable
+import org.jetbrains.kotlin.gradle.utils.setAttribute
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.capitalizeAsciiOnly
 
 private const val SCRIPTING_LOG_PREFIX = "kotlin scripting plugin:"
@@ -113,12 +114,12 @@ private fun configureDiscoveryTransformation(
     discoveryResultsConfigurationName: String
 ) {
     project.configurations.maybeCreateResolvable(discoveryResultsConfigurationName).apply {
-        attributes.attribute(artifactType, scriptFilesExtensions)
+        attributes.setAttribute(project, artifactType) { scriptFilesExtensions }
         extendsFrom(discoveryConfiguration)
     }
     val classLoadersCachingService = ClassLoadersCachingBuildService.registerIfAbsent(project)
     val compilerClasspath = project.configurations.named(BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME)
-    project.dependencies.registerOnceDiscoverScriptExtensionsTransform(classLoadersCachingService, compilerClasspath)
+    project.dependencies.registerOnceDiscoverScriptExtensionsTransform(project, classLoadersCachingService, compilerClasspath)
 }
 
 @CacheableTransform
@@ -153,6 +154,7 @@ internal abstract class DiscoverScriptExtensionsTransformAction : TransformActio
 }
 
 private fun DependencyHandler.registerDiscoverScriptExtensionsTransform(
+    project: Project,
     classLoadersCachingService: Provider<ClassLoadersCachingBuildService>,
     compilerClasspath: NamedDomainObjectProvider<Configuration>,
 ) {
@@ -161,24 +163,25 @@ private fun DependencyHandler.registerDiscoverScriptExtensionsTransform(
         parameters.compilerClasspath.from(compilerClasspath)
     }
     registerTransform(DiscoverScriptExtensionsTransformAction::class.java) { transformSpec ->
-        transformSpec.from.attribute(artifactType, "jar")
-        transformSpec.to.attribute(artifactType, scriptFilesExtensions)
+        transformSpec.from.setAttribute(project, artifactType) { "jar" }
+        transformSpec.to.setAttribute(project, artifactType) { scriptFilesExtensions }
         transformSpec.configureCommonParameters()
     }
 
     registerTransform(DiscoverScriptExtensionsTransformAction::class.java) { transformSpec ->
-        transformSpec.from.attribute(artifactType, "classes")
-        transformSpec.to.attribute(artifactType, scriptFilesExtensions)
+        transformSpec.from.setAttribute(project, artifactType) { "classes" }
+        transformSpec.to.setAttribute(project, artifactType) { scriptFilesExtensions }
         transformSpec.configureCommonParameters()
     }
 }
 
 private fun DependencyHandler.registerOnceDiscoverScriptExtensionsTransform(
+    project: Project,
     classLoadersCachingService: Provider<ClassLoadersCachingBuildService>,
     compilerClasspath: NamedDomainObjectProvider<Configuration>
 ) {
     if (!extensions.extraProperties.has("DiscoverScriptExtensionsTransform")) {
-        registerDiscoverScriptExtensionsTransform(classLoadersCachingService, compilerClasspath)
+        registerDiscoverScriptExtensionsTransform(project, classLoadersCachingService, compilerClasspath)
         extensions.extraProperties["DiscoverScriptExtensionsTransform"] = true
     }
 }

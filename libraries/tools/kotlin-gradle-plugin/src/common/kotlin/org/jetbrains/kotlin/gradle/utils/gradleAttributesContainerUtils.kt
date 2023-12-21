@@ -5,8 +5,11 @@
 
 package org.jetbrains.kotlin.gradle.utils
 
+import org.gradle.api.Project
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.attributes.HasAttributes
+import org.jetbrains.kotlin.gradle.plugin.internal.attributesConfigurationHelper
 
 /**
  * KGP's internal analog of [org.gradle.api.internal.attributes.AttributeContainerInternal.asMap]
@@ -21,15 +24,30 @@ internal fun AttributeContainer.toMap(): Map<Attribute<*>, Any?> {
     return result
 }
 
+internal fun <T : Any> HasAttributes.setAttribute(
+    project: Project,
+    key: Attribute<T>,
+    attribute: () -> T
+) {
+    project.attributesConfigurationHelper.setAttribute(this, key, attribute)
+}
 
-internal fun copyAttributes(from: AttributeContainer, to: AttributeContainer, keys: Iterable<Attribute<*>> = from.keySet()) {
-    // capture type argument T
-    fun <T : Any> copyOneAttribute(from: AttributeContainer, to: AttributeContainer, key: Attribute<T>) {
-        val value = checkNotNull(from.getAttribute(key))
-        to.attribute(key, value)
-    }
-    for (key in keys) {
-        copyOneAttribute(from, to, key)
+internal fun <T : Any> HasAttributes.copyAttributeTo(
+    project: Project,
+    dest: HasAttributes,
+    key: Attribute<T>,
+) {
+    dest.setAttribute(project, key) {
+        attributes.getAttribute(key) ?: throw IllegalStateException("Failed to get ${key.name} attribute! Container doesn't have it.")
     }
 }
 
+internal fun HasAttributes.copyAttributesTo(
+    project: Project,
+    dest: HasAttributes,
+    keys: Iterable<Attribute<*>> = attributes.keySet(),
+) {
+    for (key in keys) {
+        copyAttributeTo(project, dest, key)
+    }
+}

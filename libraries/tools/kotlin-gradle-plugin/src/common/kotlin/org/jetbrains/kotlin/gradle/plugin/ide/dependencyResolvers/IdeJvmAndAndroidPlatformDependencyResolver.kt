@@ -9,7 +9,6 @@ package org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.DependencySubstitutions
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.attributes.Category
@@ -23,6 +22,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeDependencyResolver
 import org.jetbrains.kotlin.gradle.plugin.usageByName
 import org.jetbrains.kotlin.gradle.utils.named
+import org.jetbrains.kotlin.gradle.utils.setAttribute
 
 /**
  * Resolves dependencies of jvm and Android source sets from the perspective jvm
@@ -32,13 +32,15 @@ internal fun IdeJvmAndAndroidPlatformBinaryDependencyResolver(project: Project):
         binaryType = IdeaKotlinBinaryDependency.KOTLIN_COMPILE_BINARY_TYPE,
         artifactResolutionStrategy = IdeBinaryDependencyResolver.ArtifactResolutionStrategy.PlatformLikeSourceSet(
             setupPlatformResolutionAttributes = {
-                attributes.attribute(Usage.USAGE_ATTRIBUTE, project.usageByName(Usage.JAVA_API))
-                attributes.attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category.LIBRARY))
-                attributes.attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
-                attributes.attribute(
-                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                attributes.setAttribute(project, Usage.USAGE_ATTRIBUTE) { project.usageByName(Usage.JAVA_API) }
+                attributes.setAttribute(project, Category.CATEGORY_ATTRIBUTE) { project.objects.named(Category.LIBRARY) }
+                attributes.setAttribute(project, KotlinPlatformType.attribute) { KotlinPlatformType.jvm }
+                attributes.setAttribute(
+                    project,
+                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE
+                ) {
                     project.objects.named(TargetJvmEnvironment.STANDARD_JVM)
-                )
+                }
             },
             /*
             Prevent this resolver from running against project dependencies:
