@@ -95,7 +95,16 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
 
         inline fun getOrPut(cursor: CValue<CXCursor>, create: () -> D, configure: (D) -> Unit): D {
             val key = getDeclarationId(cursor)
-            return getOrPut(key, create, configure)
+            var created = false
+            return getOrPut(key, { created = true; create() }, configure).also {
+                if (created) check(getHeaderId(getContainingFile(cursor)) == it.location.headerId) {
+                    """
+                        $key
+                        location header id: ${it.location.headerId}
+                        cursor header id: ${getHeaderId(getContainingFile(cursor))}
+                    """.trimIndent()
+                }
+            }
         }
 
         inline fun getOrPut(key: DeclarationID, create: () -> D, configure: (D) -> Unit): D {
