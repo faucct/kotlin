@@ -95,13 +95,16 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
 
         inline fun getOrPut(cursor: CValue<CXCursor>, create: () -> D, configure: (D) -> Unit): D {
             val key = getDeclarationId(cursor)
+            return getOrPut(key, create, configure)
+        }
+
+        inline fun getOrPut(key: DeclarationID, create: () -> D, configure: (D) -> Unit): D {
             return all.getOrElse(key) {
 
                 val value = create()
                 all[key] = value
 
-                val headerId = value.location.headerId
-                if (!library.headerExclusionPolicy.excludeAll(headerId)) {
+                if (shouldInclude(value.location)) {
                     // This declaration is used, and thus should be included:
                     included.add(value)
                 }
@@ -110,6 +113,8 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
                 value
             }
         }
+
+        fun shouldInclude(location: Location) = !library.headerExclusionPolicy.excludeAll(location.headerId)
 
     }
 
@@ -936,6 +941,10 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
 
             CXIdxEntity_ObjCClass -> if (cursor.kind != CXCursorKind.CXCursor_ObjCClassRef /* not a forward declaration */) {
                 indexObjCClass(cursor)
+            } else {
+                indexObjCForwardDeclaration(objCClassRegistry, entityInfo, cursor) { name, location ->
+                    ObjCClassImpl(name, location, isForwardDeclaration = true, binaryName = null)
+                }
             }
 
             CXIdxEntity_ObjCCategory -> {
@@ -946,6 +955,10 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
 
             CXIdxEntity_ObjCProtocol -> if (cursor.kind != CXCursorKind.CXCursor_ObjCProtocolRef /* not a forward declaration */) {
                 indexObjCProtocol(cursor)
+            } else {
+                indexObjCForwardDeclaration(objCProtocolRegistry, entityInfo, cursor) { name, location ->
+                    ObjCProtocolImpl(name, location, isForwardDeclaration = true)
+                }
             }
 
             CXIdxEntity_ObjCProperty -> {
@@ -1029,6 +1042,25 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
         if (isAvailable(cursor)) {
             getObjCProtocolAt(cursor)
         }
+    }
+
+    private fun <T : ObjCClassOrProtocol> indexObjCForwardDeclaration(
+            registry: LocatableDeclarationRegistry<T>,
+            entityInfo: CXIdxEntityInfo,
+            cursor: CValue<CXCursor>,
+            create: (name: String, location: Location) -> T
+    ) {
+        if (clang_Cursor_isNull(clang_getCursorDefinition(cursor)) == 0) return
+
+        if (!isAvailable(cursor)) return
+
+        val location = getLocation(cursor)
+        if (!registry.shouldInclude(location)) return
+
+        val declarationId = DeclarationID.USR(entityInfo.USR!!.toKString())
+        registry.getOrPut(declarationId, create = {
+            create(entityInfo.name!!.toKString(), location)
+        }, configure = {})
     }
 
     fun indexObjCCategory(cursor: CValue<CXCursor>) {
