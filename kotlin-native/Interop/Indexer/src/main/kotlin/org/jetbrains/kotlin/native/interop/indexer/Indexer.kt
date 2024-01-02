@@ -100,7 +100,7 @@ public open class NativeIndexImpl(val library: NativeLibrary, val verbose: Boole
                 val value = create()
                 all[key] = value
 
-                val headerId = getHeaderId(getContainingFile(cursor))
+                val headerId = value.location.headerId
                 if (!library.headerExclusionPolicy.excludeAll(headerId)) {
                     // This declaration is used, and thus should be included:
                     included.add(value)
