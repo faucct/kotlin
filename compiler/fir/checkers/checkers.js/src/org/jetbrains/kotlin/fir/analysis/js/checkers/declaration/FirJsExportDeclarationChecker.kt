@@ -224,7 +224,6 @@ object FirJsExportDeclarationChecker : FirBasicDeclarationChecker() {
                 || isNothingOrNullableNothing
                 || isPrimitiveArray
                 || isNonPrimitiveArray
-                || isArrayType
                 || isList
                 || isMutableList
                 || isSet
