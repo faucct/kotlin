@@ -126,8 +126,8 @@ abstract class FirDataFlowAnalyzer(
 
     // ----------------------------------- Requests -----------------------------------
 
-    fun isAccessToUnstableLocalVariable(expression: FirExpression): Boolean =
-        context.variableAssignmentAnalyzer.isAccessToUnstableLocalVariable(expression)
+    fun isAccessToUnstableLocalVariable(expression: FirExpression, type: ConeKotlinType?): Boolean =
+        context.variableAssignmentAnalyzer.isAccessToUnstableLocalVariable(expression, type, components.session)
 
     /**
      * @param ignoreCallArguments Should be set to `true` when call argument flow should not be used for smart-casting. This is important
@@ -1024,8 +1024,13 @@ abstract class FirDataFlowAnalyzer(
     }
 
     fun exitVariableAssignment(assignment: FirVariableAssignment) {
+        val property = assignment.calleeReference?.toResolvedPropertySymbol()?.fir
+        if (property != null && property.isLocal) {
+            context.variableAssignmentAnalyzer.visitAssignment(property, assignment.rValue.resolvedType)
+        }
+
         graphBuilder.exitVariableAssignment(assignment).mergeIncomingFlow { _, flow ->
-            val property = assignment.calleeReference?.toResolvedPropertySymbol()?.fir ?: return@mergeIncomingFlow
+            property ?: return@mergeIncomingFlow
             if (property.isLocal || property.isVal) {
                 exitVariableInitialization(flow, assignment.rValue, property, assignment.lValue, hasExplicitType = false)
             } else {
@@ -1084,7 +1089,7 @@ abstract class FirDataFlowAnalyzer(
     private val RealVariable.hasLocalStability get() = stability == PropertyStability.LOCAL_VAR
 
     private fun RealVariable.isStableOrLocalStableAccess(access: FirExpression): Boolean {
-        return isStable || (hasLocalStability && !isAccessToUnstableLocalVariable(access))
+        return isStable || (hasLocalStability && !isAccessToUnstableLocalVariable(access, null))
     }
 
     fun exitThrowExceptionNode(throwExpression: FirThrowExpression) {
