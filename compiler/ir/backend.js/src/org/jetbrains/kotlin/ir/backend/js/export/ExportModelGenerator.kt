@@ -524,7 +524,7 @@ class ExportModelGenerator(val context: JsIrBackendContext, val generateNamespac
         return ExportedType.ErrorType("UnknownType ${type.render()}")
     }
 
-    private fun exportTypeParameter(typeParameter: IrTypeParameter): ExportedType.TypeParameter {
+    fun exportTypeParameter(typeParameter: IrTypeParameter): ExportedType.TypeParameter {
         val constraint = typeParameter.superTypes.asSequence()
             .filter { it != context.irBuiltIns.anyNType }
             .map {
@@ -548,12 +548,6 @@ class ExportModelGenerator(val context: JsIrBackendContext, val generateNamespac
                 }
             }
         )
-    }
-
-    private fun ExportedDeclaration.withAttributesFor(declaration: IrDeclaration): ExportedDeclaration {
-        declaration.getDeprecated()?.let { attributes.add(ExportedAttribute.DeprecatedAttribute(it)) }
-
-        return this
     }
 
     private val currentlyProcessedTypes = hashSetOf<IrType>()
@@ -638,13 +632,6 @@ class ExportModelGenerator(val context: JsIrBackendContext, val generateNamespac
         return exportedType.withNullability(isMarkedNullable)
             .also { currentlyProcessedTypes.remove(type) }
     }
-
-    private fun IrDeclarationWithName.getExportedIdentifier(): String =
-        with(getJsNameOrKotlinName()) {
-            if (isSpecial)
-                error("Cannot export special name: ${name.asString()} for declaration $fqNameWhenAvailable")
-            else identifier
-        }
 
     private fun functionExportability(function: IrSimpleFunction): Exportability {
         if (function.isInline && function.typeParameters.any { it.isReified })
@@ -870,3 +857,17 @@ val strictModeReservedWords = setOf(
 )
 
 private val allReservedWords = reservedWords + strictModeReservedWords
+
+fun ExportedDeclaration.withAttributesFor(declaration: IrDeclaration): ExportedDeclaration {
+    declaration.getDeprecated()?.let { attributes.add(ExportedAttribute.DeprecatedAttribute(it)) }
+
+    return this
+}
+
+fun IrDeclarationWithName.getExportedIdentifier(): String =
+    with(getJsNameOrKotlinName()) {
+        if (isSpecial)
+            error("Cannot export special name: ${name.asString()} for declaration $fqNameWhenAvailable")
+        else identifier
+    }
+

@@ -367,6 +367,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
 
                 dumpDeclarationIrSizesIfNeed(arguments.irDceDumpDeclarationIrSizesToFile, allModules, dceDumpNameCache)
 
+                val generateDts = configuration.getBoolean(JSConfigurationKeys.GENERATE_DTS)
                 val generateSourceMaps = configuration.getBoolean(JSConfigurationKeys.SOURCE_MAP)
 
                 val res = compileWasm(
@@ -376,7 +377,8 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                     emitNameSection = arguments.wasmDebug,
                     allowIncompleteImplementations = arguments.irDce,
                     generateWat = configuration.get(JSConfigurationKeys.WASM_GENERATE_WAT, false),
-                    generateSourceMaps = generateSourceMaps
+                    generateSourceMaps = generateSourceMaps,
+                    generateDts = generateDts
                 )
 
                 writeCompilationResult(

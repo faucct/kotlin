@@ -49,6 +49,7 @@ class WasmBackendFacade(
     override fun transform(module: TestModule, inputArtifact: BinaryArtifacts.KLib): BinaryArtifacts.Wasm? {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
         val generateSourceMaps = WasmEnvironmentConfigurationDirectives.GENERATE_SOURCE_MAP in testServices.moduleStructure.allDirectives
+        val generateDts = WasmEnvironmentConfigurationDirectives.CHECK_TYPESCRIPT_DECLARATIONS in testServices.moduleStructure.allDirectives
 
         // Enforce PL with the ERROR log level to fail any tests where PL detected any incompatibilities.
         configuration.setupPartialLinkageConfig(PartialLinkageConfig(PartialLinkageMode.ENABLE, PartialLinkageLogLevel.ERROR))
@@ -110,7 +111,8 @@ class WasmBackendFacade(
             emitNameSection = true,
             allowIncompleteImplementations = false,
             generateWat = generateWat,
-            generateSourceMaps = generateSourceMaps
+            generateSourceMaps = generateSourceMaps,
+            generateDts = generateDts
         )
 
         val dceDumpNameCache = DceDumpNameCache()
@@ -125,7 +127,8 @@ class WasmBackendFacade(
             emitNameSection = true,
             allowIncompleteImplementations = true,
             generateWat = generateWat,
-            generateSourceMaps = generateSourceMaps
+            generateSourceMaps = generateSourceMaps,
+            generateDts = generateDts
         )
 
         return BinaryArtifacts.Wasm(
@@ -148,7 +151,8 @@ class WasmBackendFacade(
             jsUninstantiatedWrapper = jsUninstantiatedWrapper,
             jsWrapper = jsWrapper,
             wasm = newWasm,
-            debugInformation = null
+            debugInformation = null,
+            dts = dts
         )
     }
 }

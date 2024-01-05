@@ -113,6 +113,7 @@ sealed class ExportedType {
     sealed class Primitive(val typescript: kotlin.String) : ExportedType() {
         object Boolean : Primitive("boolean")
         object Number : Primitive("number")
+        object BigInt : Primitive("bigint")
         object ByteArray : Primitive("Int8Array")
         object ShortArray : Primitive("Int16Array")
         object IntArray : Primitive("Int32Array")
