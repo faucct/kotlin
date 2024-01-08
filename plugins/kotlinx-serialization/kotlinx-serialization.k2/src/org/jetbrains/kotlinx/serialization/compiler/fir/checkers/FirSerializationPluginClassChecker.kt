@@ -365,11 +365,6 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
     private fun checkClassWithCustomSerializer(classSymbol: FirClassSymbol<*>, reporter: DiagnosticReporter) {
         val serializerType = classSymbol.getSerializableWith(session)?.fullyExpandedType(session) ?: return
 
-        // Do not account for @Polymorphic and @Contextual, as they are serializers for T: Any
-        // and would not be compatible on direct comparison
-        if (serializerType.classId in SerializersClassIds.setOfSpecialSerializers) {
-            return
-        }
         val serializerForType = serializerType.serializerForType(session)?.fullyExpandedType(session)
 
         checkCustomSerializerMatch(classSymbol, source = null, classSymbol.defaultType(), serializerType, serializerForType, reporter)
@@ -618,6 +613,13 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
         reporter: DiagnosticReporter,
     ) {
         serializerForType ?: return
+
+        // Do not account for @Polymorphic and @Contextual, as they are serializers for T: Any
+        // and would not be compatible on direct comparison
+        if (serializerType.classId in SerializersClassIds.setOfSpecialSerializers) {
+            return
+        }
+
         val primaryConstructor = serializerType.toRegularClassSymbol(session)?.primaryConstructorSymbol(session) ?: return
 
         val targetElement by lazy { source ?: containingClassSymbol.serializableOrMetaAnnotationSource }
