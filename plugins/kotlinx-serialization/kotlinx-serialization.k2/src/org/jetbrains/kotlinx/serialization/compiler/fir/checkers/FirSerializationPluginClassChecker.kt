@@ -554,6 +554,10 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
 
                 checkCustomSerializerMatch(classSymbol, typeSource, type, serializerType, serializerForType, reporter)
                 checkCustomSerializerIsNotLocal(typeSource, classSymbol, serializerType, reporter)
+
+                val annotationElement = type.customAnnotations.serializableAnnotation(session)?.source ?: typeSource
+                checkCustomSerializerParameters(classSymbol, annotationElement, serializerType, serializerForType, reporter)
+                checkCustomSerializerNotAbstract(classSymbol, annotationElement, serializerType, reporter)
                 checkSerializerNullability(type, serializerType, typeSource, reporter)
             }
             checkTypeArguments(typeRef, typeSource, reporter)
@@ -614,17 +618,22 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
         reporter: DiagnosticReporter,
     ) {
         serializerForType ?: return
-        val primaryConstructor = serializerType.toRegularClassSymbol(session)?.primaryConstructorSymbol() ?: return
+        val primaryConstructor = serializerType.toRegularClassSymbol(session)?.primaryConstructorSymbol(session) ?: return
 
         val targetElement by lazy { source ?: containingClassSymbol.serializableOrMetaAnnotationSource }
 
         if (primaryConstructor.valueParameterSymbols.isNotEmpty() && serializerForType.typeArguments.size != primaryConstructor.valueParameterSymbols.size) {
+            val message = if (serializerForType.typeArguments.isNotEmpty()) {
+                "expected no parameters or ${serializerForType.typeArguments.size}, but actual ${primaryConstructor.valueParameterSymbols.size}"
+            } else {
+                "expected no parameters but actual ${primaryConstructor.valueParameterSymbols.size}"
+            }
             reporter.reportOn(
                 targetElement,
                 FirSerializationErrors.CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT,
                 serializerType,
                 serializerForType,
-                "${serializerForType.typeArguments.size}, but actual ${primaryConstructor.valueParameterSymbols.size}"
+                message
             )
         }
 

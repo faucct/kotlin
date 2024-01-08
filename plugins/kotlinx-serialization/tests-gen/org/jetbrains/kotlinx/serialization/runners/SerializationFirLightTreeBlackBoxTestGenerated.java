@@ -226,6 +226,12 @@ public class SerializationFirLightTreeBlackBoxTestGenerated extends AbstractSeri
         }
 
         @Test
+        @TestMetadata("polymorphic.kt")
+        public void testPolymorphic() throws Exception {
+            runTest("plugins/kotlinx-serialization/testData/boxIr/polymorphic.kt");
+        }
+
+        @Test
         @TestMetadata("repeatableSerialInfo.kt")
         public void testRepeatableSerialInfo() throws Exception {
             runTest("plugins/kotlinx-serialization/testData/boxIr/repeatableSerialInfo.kt");

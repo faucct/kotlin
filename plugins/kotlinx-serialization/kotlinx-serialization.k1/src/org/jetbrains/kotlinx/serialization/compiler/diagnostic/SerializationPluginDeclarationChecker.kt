@@ -444,14 +444,7 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
                 val element = ktType?.typeElement
                 checkCustomSerializerMatch(it.module, it.type, it.descriptor, element, trace, propertyPsi)
                 val annotationPsi = it.descriptor.findSerializableOrMetaAnnotationDeclaration()
-                checkCustomSerializerNotAbstract(
-                    it.module,
-                    it.type,
-                    it.descriptor,
-                    annotationPsi,
-                    trace,
-                    propertyPsi
-                )
+                checkCustomSerializerNotAbstract(it.module, it.type, it.descriptor, annotationPsi, trace, propertyPsi)
                 checkCustomSerializerParameters(it.module, it.descriptor, it.type, annotationPsi, propertyPsi, trace)
                 checkCustomSerializerIsNotLocal(it.module, it.descriptor, trace, propertyPsi)
                 checkSerializerNullability(it.type, serializer.defaultType, element, trace, propertyPsi)
@@ -520,8 +513,14 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
         }
         val serializer = findTypeSerializerOrContextUnchecked(module, type)
         if (serializer != null) {
-            checkCustomSerializerMatch(module, type, type, element, trace, fallbackElement)
-            checkCustomSerializerIsNotLocal(module, type, trace, fallbackElement)
+            type.annotations.serializableWith(module)?.let {
+                checkCustomSerializerMatch(module, type, type, element, trace, fallbackElement)
+                checkCustomSerializerIsNotLocal(module, type, trace, fallbackElement)
+
+                val annotationElement = type.findSerializableAnnotationDeclaration()
+                checkCustomSerializerParameters(module, type, type, annotationElement, fallbackElement, trace)
+                checkCustomSerializerNotAbstract(module, type, type, annotationElement, trace, fallbackElement)
+            }
             checkSerializerNullability(type, serializer.defaultType, element, trace, fallbackElement)
             checkTypeArguments(module, type, element, trace, fallbackElement)
         } else {
@@ -615,12 +614,18 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
         val targetElement = element ?: fallbackElement
 
         if (primaryConstructor.valueParameters.isNotEmpty() && primaryConstructor.valueParameters.size != serializableType.arguments.size) {
+            val message = if (serializableType.arguments.isNotEmpty()) {
+                "expected no parameters or ${serializableType.arguments.size}, but actual ${primaryConstructor.valueParameters.size}"
+            } else {
+                "expected no parameters but actual ${primaryConstructor.valueParameters.size}"
+            }
+
             trace.report(
                 SerializationErrors.CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT.on(
                     targetElement,
                     serializerType,
                     serializableType,
-                    "${serializableType.arguments.size}, but actual ${primaryConstructor.valueParameters.size}"
+                    message
                 )
             )
         }

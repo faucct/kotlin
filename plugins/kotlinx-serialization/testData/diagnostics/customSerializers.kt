@@ -103,6 +103,28 @@ class Holder<T>(
     <!CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer1Err::class)<!> val p1_1Err: Prop1<Int>,
     <!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer2Err::class)<!> val p1_2TErr: Prop1<T>,
     <!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer2Err::class)<!> val p1_2Err: Prop1<Int>,
+
+    // generic params
+    val list_obj0: List<@Serializable(Prop0SerializerObject::class) Prop0>,
+
+    val list_p0_0: List<@Serializable(Prop0Serializer0::class) Prop0>,
+    val list_p0_1: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT!>@Serializable(Prop0Serializer1::class)<!> Prop0>,
+    val list_p0_1Err: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop0Serializer1Err::class)<!> Prop0>,
+
+    val list_obj1T: List<@Serializable(Prop1SerializerObject::class) Prop1<T>>,
+    val list_obj1: List<@Serializable(Prop1SerializerObject::class) Prop1<Int>>,
+
+    val list_p1_0T: List<@Serializable(Prop1Serializer0::class) Prop1<T>>,
+    val list_p1_0: List<@Serializable(Prop1Serializer0::class) Prop1<Int>>,
+    val list_p1_1T: List<@Serializable(Prop1Serializer1::class) Prop1<T>>,
+    val list_p1_1: List<@Serializable(Prop1Serializer1::class) Prop1<Int>>,
+    val list_p1_2T: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT!>@Serializable(Prop1Serializer2::class)<!> Prop1<T>>,
+    val list_p1_2: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT!>@Serializable(Prop1Serializer2::class)<!> Prop1<Int>>,
+
+    val list_p1_1TErr: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer1Err::class)<!> Prop1<T>>,
+    val list_p1_1Err: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer1Err::class)<!> Prop1<Int>>,
+    val list_p1_2TErr: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer2Err::class)<!> Prop1<T>>,
+    val list_p1_2Err: List<<!CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE, CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE!>@Serializable(Prop1Serializer2Err::class)<!> Prop1<Int>>,
 )
 
 

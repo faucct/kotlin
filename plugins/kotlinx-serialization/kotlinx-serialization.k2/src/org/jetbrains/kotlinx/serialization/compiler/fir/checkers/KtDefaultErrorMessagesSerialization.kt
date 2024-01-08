@@ -117,7 +117,7 @@ object KtDefaultErrorMessagesSerialization : BaseDiagnosticRendererFactory() {
         )
         put(
             FirSerializationErrors.CUSTOM_SERIALIZER_PARAM_ILLEGAL_COUNT,
-            "Custom serializer ''{0}'' can not be used for ''{1}'' since it has an invalid number of parameters in primary constructor: expected no parameters or {2}",
+            "Custom serializer ''{0}'' can not be used for ''{1}'' since it has an invalid number of parameters in primary constructor: {2}",
             FirDiagnosticRenderers.RENDER_TYPE,
             FirDiagnosticRenderers.RENDER_TYPE,
             CommonRenderers.STRING
