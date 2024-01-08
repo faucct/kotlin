@@ -124,7 +124,7 @@ object KtDefaultErrorMessagesSerialization : BaseDiagnosticRendererFactory() {
         )
         put(
             FirSerializationErrors.CUSTOM_SERIALIZER_PARAM_ILLEGAL_TYPE,
-            "Custom serializer ''{0}'' can not be used for ''{1}'', type of parameter ''{2}'' in primary constructor should be ''KSerializer''",
+            "Custom serializer ''{0}'' can not be used for ''{1}'', type of parameter ''{2}'' in serializer's primary constructor should be ''KSerializer''",
             FirDiagnosticRenderers.RENDER_TYPE,
             FirDiagnosticRenderers.RENDER_TYPE,
             CommonRenderers.STRING
