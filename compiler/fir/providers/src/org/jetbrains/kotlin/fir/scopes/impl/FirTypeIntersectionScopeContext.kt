@@ -30,12 +30,20 @@ import kotlin.contracts.contract
 
 typealias MembersByScope<D> = List<Pair<FirTypeScope, List<D>>>
 
+interface ResultOfIntersectionInterceptor {
+    fun <D : FirCallableSymbol<*>> getResultOfIntersectionOrNull(
+        group: List<MemberWithBaseScope<D>>,
+        context: FirTypeIntersectionScopeContext,
+    ): ResultOfIntersection<D>?
+}
+
 class FirTypeIntersectionScopeContext(
     val session: FirSession,
     private val overrideChecker: FirOverrideChecker,
     val scopes: List<FirTypeScope>,
     private val dispatchReceiverType: ConeSimpleKotlinType,
     private val forClassUseSiteScope: Boolean,
+    private val resultOfIntersectionInterceptor: ResultOfIntersectionInterceptor? = null,
 ) {
     private val overrideService = session.overrideService
 
@@ -159,28 +167,35 @@ class FirTypeIntersectionScopeContext(
             val groupWithInvisible =
                 overrideService.extractBothWaysOverridable(allMembersWithScope.maxByVisibility(), allMembersWithScope, overrideChecker)
             val group = groupWithInvisible.filter { it.isVisible() }.ifEmpty { groupWithInvisible }
-            val nonSubsumed = if (forClassUseSiteScope) group.nonSubsumed() else group
-            val mostSpecific = overrideService.selectMostSpecificMembers(nonSubsumed, ReturnTypeCalculatorForFullBodyResolve.Default)
-            val nonTrivial = if (forClassUseSiteScope) {
-                // Create a non-trivial intersection override when the base methods come from different scopes,
-                // even if one of them is more specific than the others, i.e. when there is more than one method that is not subsumed.
-                // This is necessary for proper reporting of MANY_{IMPL,INTERFACES}_MEMBER_NOT_IMPLEMENTED diagnostics.
-                //
-                // It is also possible to have the opposite case (> 1 most specific member, but all members are from
-                // the same base scope), but this means there are different instantiations of the same base class,
-                // which should generally result in INCONSISTENT_TYPE_PARAMETER_VALUES errors.
-                nonSubsumed.size > 1 &&
-                        nonSubsumed.mapTo(mutableSetOf()) { it.member.fir.unwrapSubstitutionOverrides().symbol }.size > 1
+
+            val interceptedResult = resultOfIntersectionInterceptor?.getResultOfIntersectionOrNull(group, this)
+
+            if (interceptedResult != null) {
+                result += interceptedResult
             } else {
-                // Create a non-trivial intersection override when return types should be intersected.
-                mostSpecific.size > 1
-            }
-            if (nonTrivial) {
-                // Only add non-subsumed members to list of overridden in intersection override.
-                result += ResultOfIntersection.NonTrivial(this, mostSpecific, overriddenMembers = nonSubsumed, containingScope = null)
-            } else {
-                val (member, containingScope) = mostSpecific.first()
-                result += ResultOfIntersection.SingleMember(member, group, containingScope)
+                val nonSubsumed = if (forClassUseSiteScope) group.nonSubsumed() else group
+                val mostSpecific = overrideService.selectMostSpecificMembers(nonSubsumed, ReturnTypeCalculatorForFullBodyResolve.Default)
+                val nonTrivial = if (forClassUseSiteScope) {
+                    // Create a non-trivial intersection override when the base methods come from different scopes,
+                    // even if one of them is more specific than the others, i.e. when there is more than one method that is not subsumed.
+                    // This is necessary for proper reporting of MANY_{IMPL,INTERFACES}_MEMBER_NOT_IMPLEMENTED diagnostics.
+                    //
+                    // It is also possible to have the opposite case (> 1 most specific member, but all members are from
+                    // the same base scope), but this means there are different instantiations of the same base class,
+                    // which should generally result in INCONSISTENT_TYPE_PARAMETER_VALUES errors.
+                    nonSubsumed.size > 1 &&
+                            nonSubsumed.mapTo(mutableSetOf()) { it.member.fir.unwrapSubstitutionOverrides().symbol }.size > 1
+                } else {
+                    // Create a non-trivial intersection override when return types should be intersected.
+                    mostSpecific.size > 1
+                }
+                if (nonTrivial) {
+                    // Only add non-subsumed members to list of overridden in intersection override.
+                    result += ResultOfIntersection.NonTrivial(this, mostSpecific, overriddenMembers = nonSubsumed, containingScope = null)
+                } else {
+                    val (member, containingScope) = mostSpecific.first()
+                    result += ResultOfIntersection.SingleMember(member, group, containingScope)
+                }
             }
         }
 

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.scopes
 
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.name.Name
@@ -22,6 +23,8 @@ class FirUnstableSmartcastTypeScope(
     private val smartcastScope: FirTypeScope,
     private val originalScope: FirTypeScope
 ) : FirTypeScope() {
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = smartcastScope.ownerClassLookupTag
+
     private val scopes = listOf(originalScope, smartcastScope)
     private val symbolsFromUnstableSmartcast = mutableSetOf<FirCallableSymbol<*>>()
     override fun processClassifiersByNameWithSubstitution(

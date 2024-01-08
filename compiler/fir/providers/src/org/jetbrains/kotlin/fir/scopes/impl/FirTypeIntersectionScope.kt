@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.fir.scopes.impl
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.scopes.*
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeSimpleKotlinType
 import org.jetbrains.kotlin.name.Name
@@ -18,6 +19,8 @@ class FirTypeIntersectionScope private constructor(
     private val scopes: List<FirTypeScope>,
     dispatchReceiverType: ConeSimpleKotlinType,
 ) : AbstractFirOverrideScope(session, overrideChecker) {
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = null
+
     private val intersectionContext =
         FirTypeIntersectionScopeContext(session, overrideChecker, scopes, dispatchReceiverType, forClassUseSiteScope = false)
 

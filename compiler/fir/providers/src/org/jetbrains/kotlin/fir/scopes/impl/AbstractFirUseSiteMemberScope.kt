@@ -16,15 +16,16 @@ import org.jetbrains.kotlin.fir.types.ConeSimpleKotlinType
 import org.jetbrains.kotlin.name.Name
 
 abstract class AbstractFirUseSiteMemberScope(
-    val ownerClassLookupTag: ConeClassLikeLookupTag,
+    override val ownerClassLookupTag: ConeClassLikeLookupTag,
     session: FirSession,
     overrideChecker: FirOverrideChecker,
     protected val superTypeScopes: List<FirTypeScope>,
     dispatchReceiverType: ConeSimpleKotlinType,
-    protected val declaredMemberScope: FirContainingNamesAwareScope
+    protected val declaredMemberScope: FirContainingNamesAwareScope,
+    resultOfIntersectionInterceptor: ResultOfIntersectionInterceptor? = null,
 ) : AbstractFirOverrideScope(session, overrideChecker) {
     protected val supertypeScopeContext =
-        FirTypeIntersectionScopeContext(session, overrideChecker, superTypeScopes, dispatchReceiverType, forClassUseSiteScope = true)
+        FirTypeIntersectionScopeContext(session, overrideChecker, superTypeScopes, dispatchReceiverType, forClassUseSiteScope = true, resultOfIntersectionInterceptor)
 
     private val functions: MutableMap<Name, Collection<FirNamedFunctionSymbol>> = hashMapOf()
 

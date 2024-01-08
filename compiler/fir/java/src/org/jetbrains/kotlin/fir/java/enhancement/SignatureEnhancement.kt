@@ -47,7 +47,6 @@ import org.jetbrains.kotlin.load.java.AnnotationQualifierApplicabilityType
 import org.jetbrains.kotlin.load.java.AnnotationQualifierApplicabilityType.VALUE_PARAMETER
 import org.jetbrains.kotlin.load.java.FakePureImplementationsProvider
 import org.jetbrains.kotlin.load.java.JavaTypeQualifiersByElementType
-import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.load.java.typeEnhancement.*
 import org.jetbrains.kotlin.load.kotlin.SignatureBuildingComponents
 import org.jetbrains.kotlin.name.*
@@ -531,12 +530,7 @@ class FirSignatureEnhancement(
     }
 
     private fun getPurelyImplementedSupertype(session: FirSession): ConeKotlinType? {
-        val purelyImplementedClassIdFromAnnotation = owner.annotations
-            .firstOrNull { it.unexpandedClassId?.asSingleFqName() == JvmAnnotationNames.PURELY_IMPLEMENTS_ANNOTATION }
-            ?.let { (it.argumentMapping.mapping.values.firstOrNull() as? FirConstExpression<*>) }
-            ?.let { it.value as? String }
-            ?.takeIf { it.isNotBlank() && isValidJavaFqName(it) }
-            ?.let { ClassId.topLevel(FqName(it)) }
+        val purelyImplementedClassIdFromAnnotation = owner.explicitlyPurelyImplementedClassId()
         val purelyImplementedClassId = purelyImplementedClassIdFromAnnotation
             ?: FakePureImplementationsProvider.getPurelyImplementedInterface(owner.symbol.classId)
             ?: return null
@@ -713,6 +707,15 @@ class FirSignatureEnhancement(
 
     private fun FirTypeRef.toConeKotlinType(mode: FirJavaTypeConversionMode): ConeKotlinType =
         toConeKotlinTypeProbablyFlexible(session, javaTypeParameterStack, mode)
+}
+
+fun FirRegularClass.explicitlyPurelyImplementedClassId(): ClassId? {
+    return annotations
+        .firstOrNull { it.unexpandedClassId == JvmStandardClassIds.Annotations.PurelyImplements }
+        ?.let { (it.argumentMapping.mapping.values.firstOrNull() as? FirConstExpression<*>) }
+        ?.let { it.value as? String }
+        ?.takeIf { it.isNotBlank() && isValidJavaFqName(it) }
+        ?.let { ClassId.topLevel(FqName(it)) }
 }
 
 private class EnhancementSignatureParts(

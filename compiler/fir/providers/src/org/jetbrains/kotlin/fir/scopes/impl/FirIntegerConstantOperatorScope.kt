@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.ProcessorAction
 import org.jetbrains.kotlin.fir.scopes.getFunctions
 import org.jetbrains.kotlin.fir.scopes.impl.ConvertibleIntegerOperators.binaryOperatorsWithSignedArgument
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
@@ -45,6 +46,8 @@ class FirIntegerConstantOperatorScope(
     }
 
     private val mappedFunctions = mutableMapOf<Name, FirNamedFunctionSymbol>()
+
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = null
 
     override fun processFunctionsByName(name: Name, processor: (FirNamedFunctionSymbol) -> Unit) {
         // Constant conversion for those unary operators works only for signed integers

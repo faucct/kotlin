@@ -44,6 +44,8 @@ class FirClassSubstitutionScope(
     private val substitutionOverrideCache = session.substitutionOverrideStorage.substitutionOverrideCacheByScope.getValue(key, null)
     private val newOwnerClassId = dispatchReceiverTypeForSubstitutedMembers.lookupTag.classId
 
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = useSiteMemberScope.ownerClassLookupTag
+
     override fun processFunctionsByName(name: Name, processor: (FirNamedFunctionSymbol) -> Unit) {
         useSiteMemberScope.processFunctionsByName(name) process@{ original ->
             val function = substitutionOverrideCache.overridesForFunctions.getValue(original, this)

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.scopes
 
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassifierSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
@@ -62,6 +63,7 @@ abstract class FirDelegatingTypeScope(private val delegate: FirTypeScope) : FirT
     override fun getClassifierNames(): Set<Name> = delegate.getClassifierNames()
     override fun mayContainName(name: Name): Boolean = delegate.mayContainName(name)
     override val scopeOwnerLookupNames: List<String> get() = delegate.scopeOwnerLookupNames
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = delegate.ownerClassLookupTag
 
     override fun processClassifiersByNameWithSubstitution(
         name: Name,

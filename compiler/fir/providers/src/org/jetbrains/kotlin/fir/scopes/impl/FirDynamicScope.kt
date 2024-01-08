@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.ProcessorAction
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeDynamicType
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
@@ -47,9 +48,11 @@ class FirDynamicScope @FirDynamicScopeConstructor constructor(
     private val session: FirSession,
     private val scopeSession: ScopeSession,
 ) : FirTypeScope() {
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = null
+
     override fun processDirectOverriddenFunctionsWithBaseScope(
         functionSymbol: FirNamedFunctionSymbol,
-        processor: (FirNamedFunctionSymbol, FirTypeScope) -> ProcessorAction
+        processor: (FirNamedFunctionSymbol, FirTypeScope) -> ProcessorAction,
     ): ProcessorAction = ProcessorAction.NEXT
 
     override fun processDirectOverriddenPropertiesWithBaseScope(

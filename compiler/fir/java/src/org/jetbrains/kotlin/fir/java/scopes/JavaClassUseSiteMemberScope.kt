@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.fir.java.declarations.FirJavaClass
 import org.jetbrains.kotlin.fir.java.declarations.FirJavaMethod
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaMethodCopy
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaValueParameterCopy
+import org.jetbrains.kotlin.fir.java.enhancement.explicitlyPurelyImplementedClassId
 import org.jetbrains.kotlin.fir.java.resolveIfJavaType
 import org.jetbrains.kotlin.fir.java.symbols.FirJavaOverriddenSyntheticPropertySymbol
 import org.jetbrains.kotlin.fir.java.syntheticPropertiesStorage
@@ -29,10 +30,8 @@ import org.jetbrains.kotlin.fir.java.toConeKotlinTypeProbablyFlexible
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.*
-import org.jetbrains.kotlin.fir.scopes.impl.AbstractFirUseSiteMemberScope
+import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.scopes.impl.FirTypeIntersectionScopeContext.ResultOfIntersection
-import org.jetbrains.kotlin.fir.scopes.impl.MembersByScope
-import org.jetbrains.kotlin.fir.scopes.impl.similarFunctionsOrBothProperties
 import org.jetbrains.kotlin.fir.scopes.jvm.computeJvmDescriptor
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
@@ -42,12 +41,29 @@ import org.jetbrains.kotlin.load.java.*
 import org.jetbrains.kotlin.load.java.SpecialGenericSignatures.Companion.ERASED_COLLECTION_PARAMETER_NAMES
 import org.jetbrains.kotlin.load.java.SpecialGenericSignatures.Companion.sameAsBuiltinMethodWithErasedValueParameters
 import org.jetbrains.kotlin.load.java.SpecialGenericSignatures.Companion.sameAsRenamedInJvmBuiltin
-import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
+
+private class PurelyImplementedResultOfIntersectionInterceptor(
+    private val purelyImplementedClassId: ClassId,
+) : ResultOfIntersectionInterceptor {
+    override fun <D : FirCallableSymbol<*>> getResultOfIntersectionOrNull(
+        group: List<MemberWithBaseScope<D>>,
+        context: FirTypeIntersectionScopeContext,
+    ): ResultOfIntersection<D>? {
+        val fromPurelyImplemented = group.firstOrNull {
+            it.baseScope.ownerClassLookupTag?.classId == purelyImplementedClassId
+        } ?: return null
+
+        return ResultOfIntersection.NonTrivial(context, listOf(fromPurelyImplemented), group, null)
+    }
+}
+
+private fun FirJavaClass.getPurelyImplementedClassId(): ClassId? {
+    return explicitlyPurelyImplementedClassId() ?: FakePureImplementationsProvider.getPurelyImplementedInterface(classId)
+}
 
 class JavaClassUseSiteMemberScope(
     private val klass: FirJavaClass,
@@ -60,7 +76,8 @@ class JavaClassUseSiteMemberScope(
     JavaOverrideChecker(session, klass.javaTypeParameterStack, superTypeScopes, considerReturnTypeKinds = true),
     superTypeScopes,
     klass.defaultType(),
-    declaredMemberScope
+    declaredMemberScope,
+    resultOfIntersectionInterceptor = klass.getPurelyImplementedClassId()?.let(::PurelyImplementedResultOfIntersectionInterceptor),
 ) {
     private val typeParameterStack = klass.javaTypeParameterStack
 

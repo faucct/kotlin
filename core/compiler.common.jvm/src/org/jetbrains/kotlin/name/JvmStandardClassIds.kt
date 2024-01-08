@@ -79,6 +79,7 @@ object JvmStandardClassIds {
         val JvmRecord = "JvmRecord".jvmId()
         val JvmVolatile = "Volatile".jvmId()
         val Throws = "Throws".jvmId()
+        val PurelyImplements = "PurelyImplements".jvmId()
         val ThrowsAlias = ClassId(StandardClassIds.BASE_KOTLIN_PACKAGE, Name.identifier("Throws"))
 
         object Java {

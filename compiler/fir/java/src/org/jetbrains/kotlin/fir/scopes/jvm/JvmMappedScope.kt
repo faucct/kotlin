@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.fir.scopes.impl.FirFakeOverrideGenerator
 import org.jetbrains.kotlin.fir.scopes.impl.FirStandardOverrideChecker
 import org.jetbrains.kotlin.fir.scopes.impl.buildSubstitutorForOverridesCheck
 import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
@@ -50,6 +51,7 @@ class JvmMappedScope(
     private val declaredMemberScope: FirContainingNamesAwareScope,
     private val javaMappedClassUseSiteScope: FirTypeScope,
 ) : FirTypeScope() {
+    override val ownerClassLookupTag: ConeClassLikeLookupTag? get() = javaMappedClassUseSiteScope.ownerClassLookupTag
     private val mappedSymbolCache = session.mappedSymbolStorage.cacheByOwner.getValue(firKotlinClass.symbol)
 
     private val overrideChecker = FirStandardOverrideChecker(session)
