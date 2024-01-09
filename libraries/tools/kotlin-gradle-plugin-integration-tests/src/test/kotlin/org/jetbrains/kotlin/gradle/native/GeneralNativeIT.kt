@@ -1088,7 +1088,7 @@ class GeneralNativeIT : KGPBaseTest() {
                     ":linkMainDebugStaticLinux64",
                 )
                 for (task in tasksWithNativeCompilerArguments) {
-                    val taskOutput = getOutputForTask(":compileCommonMainKotlinMetadata", LogLevel.INFO)
+                    val taskOutput = getOutputForTask(task, LogLevel.INFO)
                     assertTrue(taskOutput.contains("Arguments = "))
                 }
             }
