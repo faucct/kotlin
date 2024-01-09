@@ -178,6 +178,7 @@ fun compileModuleToAnalyzedFirWithPsi(
         },
         useWasmPlatform = useWasmPlatform,
     )
+    output.runPlatformCheckers(diagnosticsReporter)
     return AnalyzedFirWithPsiOutput(output, ktFiles)
 }
 
@@ -206,6 +207,7 @@ fun compileModulesToAnalyzedFirWithLightTree(
         },
         useWasmPlatform = useWasmPlatform,
     )
+    output.runPlatformCheckers(diagnosticsReporter)
     return AnalyzedFirOutput(output)
 }
 
