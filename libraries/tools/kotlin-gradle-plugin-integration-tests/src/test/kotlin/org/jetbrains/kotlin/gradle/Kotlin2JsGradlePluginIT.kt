@@ -180,29 +180,53 @@ class Kotlin2JsIrGradlePluginIT : KGPBaseTest() {
     @GradleTestVersions(minVersion = G_7_6)
     fun testJsCompositeBuildWithUpgradePackageLock(gradleVersion: GradleVersion) {
         project("js-composite-build", gradleVersion) {
+            testJsCompositeBuildWithUpgradeLockFile(
+                "kotlinUpgradePackageLock",
+                "kotlinStorePackageLock"
+            )
+        }
+    }
+
+    @DisplayName("js composite build works with yarn.lock persistence")
+    @GradleTest
+    @GradleTestVersions(minVersion = G_7_6)
+    fun testJsCompositeBuildWithUpgradeYarnLock(gradleVersion: GradleVersion) {
+        project("js-composite-build", gradleVersion) {
+            applyYarn()
+
+            testJsCompositeBuildWithUpgradeLockFile(
+                "kotlinUpgradeYarnLock",
+                "kotlinStoreYarnLock"
+            )
+        }
+    }
+
+    private fun TestProject.testJsCompositeBuildWithUpgradeLockFile(
+        upgradeTask: String,
+        storeTask: String
+    ) {
+        buildGradleKts.modify(::transformBuildScriptWithPluginsDsl)
+
+        subProject("lib").apply {
             buildGradleKts.modify(::transformBuildScriptWithPluginsDsl)
+        }
 
-            subProject("lib").apply {
-                buildGradleKts.modify(::transformBuildScriptWithPluginsDsl)
-            }
+        subProject("base").apply {
+            buildGradleKts.modify(::transformBuildScriptWithPluginsDsl)
+        }
 
-            subProject("base").apply {
-                buildGradleKts.modify(::transformBuildScriptWithPluginsDsl)
-            }
+        build(upgradeTask) {
+            assertTasksExecuted(":base:publicPackageJson")
+            assertTasksExecuted(":lib:lib-2:publicPackageJson")
+            assertTasksExecuted(":kotlinNpmInstall")
+            assertTasksExecuted(":$upgradeTask")
+        }
 
-            build("kotlinUpgradePackageLock") {
-                assertTasksExecuted(":base:publicPackageJson")
-                assertTasksExecuted(":lib:lib-2:publicPackageJson")
-                assertTasksExecuted(":kotlinNpmInstall")
-                assertTasksExecuted(":kotlinUpgradePackageLock")
-            }
-
-            build(":nodeTest") {
-                assertTasksUpToDate(":base:publicPackageJson")
-                assertTasksUpToDate(":lib:lib-2:publicPackageJson")
-                assertTasksUpToDate(":kotlinNpmInstall")
-                assertTasksExecuted(":kotlinStorePackageLock")
-            }
+        build(":nodeTest") {
+            assertTasksUpToDate(":base:publicPackageJson")
+            assertTasksUpToDate(":lib:lib-2:publicPackageJson")
+            assertTasksUpToDate(":kotlinNpmInstall")
+            assertTasksExecuted(":$storeTask")
         }
     }
 
@@ -1383,11 +1407,7 @@ class Kotlin2JsIrGradlePluginIT : KGPBaseTest() {
     @GradleTest
     fun testFailingWithYarnLockUpdate(gradleVersion: GradleVersion) {
         project("kotlin-js-package-lock-project", gradleVersion) {
-            buildGradleKts.modify {
-                "import org.jetbrains.kotlin.gradle.targets.js.yarn.yarn" +
-                        it + "\n" +
-                        "yarn"
-            }
+            applyYarn()
 
             testFailingWithLockFileUpdate(
                 storeTaskName = YarnPlugin.STORE_YARN_LOCK_NAME,
@@ -1710,12 +1730,10 @@ class Kotlin2JsIrGradlePluginIT : KGPBaseTest() {
     @GradleTest
     fun testNodeJsAndYarnNotDownloaded(gradleVersion: GradleVersion) {
         project("nodeJsDownload", gradleVersion) {
+            applyYarn()
             buildGradleKts.modify {
-                "import org.jetbrains.kotlin.gradle.targets.js.yarn.yarn" +
-                        it + "\n" +
+                it + "\n" +
                         """
-                        yarn
-
                         rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin> {
                             rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().nodeVersion = "unspecified"
                             rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().download = false
@@ -1730,19 +1748,56 @@ class Kotlin2JsIrGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @DisplayName("yarn.lock persistence")
+    @GradleTest
+    fun testYarnLockStore(gradleVersion: GradleVersion) {
+        project("nodeJsDownload", gradleVersion) {
+            applyYarn()
+
+            testLockStore(
+                "kotlinStoreYarnLock",
+                LockCopyTask.YARN_LOCK
+            )
+        }
+    }
+
     @DisplayName("package-lock.json persistence")
     @GradleTest
     fun testPackageLockStore(gradleVersion: GradleVersion) {
         project("nodeJsDownload", gradleVersion) {
-            build("assemble", "kotlinStorePackageLock") {
-                assertFileExists(projectPath.resolve(LockCopyTask.KOTLIN_JS_STORE).resolve(LockCopyTask.PACKAGE_LOCK))
-                assert(
-                    projectPath
-                        .resolve(LockCopyTask.KOTLIN_JS_STORE)
-                        .resolve(LockCopyTask.PACKAGE_LOCK)
-                        .readText() == projectPath.resolve("build/js/${LockCopyTask.PACKAGE_LOCK}").readText()
-                )
-            }
+            testLockStore(
+                "kotlinStorePackageLock",
+                LockCopyTask.PACKAGE_LOCK
+            )
+        }
+    }
+
+    private fun TestProject.testLockStore(
+        taskName: String,
+        lockFile: String
+    ) {
+        build("assemble", taskName) {
+            assertFileExists(projectPath.resolve(LockCopyTask.KOTLIN_JS_STORE).resolve(lockFile))
+            assert(
+                projectPath
+                    .resolve(LockCopyTask.KOTLIN_JS_STORE)
+                    .resolve(lockFile)
+                    .readText() == projectPath.resolve("build/js/${lockFile}").readText()
+            )
+        }
+    }
+
+    @DisplayName("Yarn ignore scripts")
+    @GradleTest
+    fun testYarnIgnoreScripts(gradleVersion: GradleVersion) {
+        project("nodeJsDownload", gradleVersion) {
+            applyYarn()
+
+            testIgnoreScripts(
+                "yarn.YarnPlugin",
+                "yarn.YarnRootExtension",
+                { " = $it" }
+            )
         }
     }
 
@@ -1750,48 +1805,61 @@ class Kotlin2JsIrGradlePluginIT : KGPBaseTest() {
     @GradleTest
     fun testNpmIgnoreScripts(gradleVersion: GradleVersion) {
         project("nodeJsDownload", gradleVersion) {
-            buildGradleKts.modify {
-                it + "\n" +
-                        """
+            testIgnoreScripts(
+                "nodejs.NodeJsRootPlugin",
+                "npm.NpmExtension",
+                { ".set($it)" }
+            )
+        }
+    }
+
+    private fun TestProject.testIgnoreScripts(
+        plugin: String,
+        extension: String,
+        set: (String) -> String,
+    ) {
+        buildGradleKts.modify {
+            it + "\n" +
+                    """
                         dependencies {
                             implementation(npm("puppeteer", "11.0.0"))
                         }
                         """.trimIndent()
+        }
+        build("assemble", "kotlinNpmInstall") {
+            assert(
+                projectPath
+                    .resolve("build")
+                    .resolve("js")
+                    .resolve("node_modules")
+                    .resolve("puppeteer")
+                    .resolve(".local-chromium")
+                    .notExists()
+            ) {
+                "Chromium should not be installed with --ignore-scripts"
             }
-            build("assemble", "kotlinNpmInstall") {
-                assert(
-                    projectPath
-                        .resolve("build")
-                        .resolve("js")
-                        .resolve("node_modules")
-                        .resolve("puppeteer")
-                        .resolve(".local-chromium")
-                        .notExists()
-                ) {
-                    "Chromium should not be installed with --ignore-scripts"
-                }
-            }
-            buildGradleKts.modify {
-                it + "\n" +
-                        """
-                        rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin> {
-                            rootProject.the<org.jetbrains.kotlin.gradle.targets.js.npm.NpmExtension>().ignoreScripts.set(false)
+        }
+
+        buildGradleKts.modify {
+            it + "\n" +
+                    """
+                        rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.$plugin> {
+                            rootProject.the<org.jetbrains.kotlin.gradle.targets.js.$extension>().ignoreScripts${set("false")}
                         }
                         """.trimIndent()
-            }
+        }
 
-            build("clean")
+        build("clean")
 
-            build("assemble", "kotlinNpmInstall") {
-                assertDirectoryExists(
-                    projectPath
-                        .resolve("build")
-                        .resolve("js")
-                        .resolve("node_modules")
-                        .resolve("puppeteer")
-                        .resolve(".local-chromium")
-                )
-            }
+        build("assemble", "kotlinNpmInstall") {
+            assertDirectoryExists(
+                projectPath
+                    .resolve("build")
+                    .resolve("js")
+                    .resolve("node_modules")
+                    .resolve("puppeteer")
+                    .resolve(".local-chromium")
+            )
         }
     }
 

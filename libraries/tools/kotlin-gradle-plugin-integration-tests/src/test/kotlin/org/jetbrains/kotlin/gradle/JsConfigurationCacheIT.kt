@@ -121,6 +121,19 @@ class JsIrConfigurationCacheIT : KGPBaseTest() {
         }
     }
 
+    @DisplayName("KT-48241: configuration cache works with test dependencies for yarn.lock")
+    @GradleTest
+    fun testTestDependenciesYarnLock(gradleVersion: GradleVersion) {
+        project("kotlin-js-project-with-test-dependencies", gradleVersion) {
+            applyYarn()
+            assertSimpleConfigurationCacheScenarioWorks(
+                "assemble", "kotlinStoreYarnLock",
+                buildOptions = defaultBuildOptions,
+                executedTaskNames = listOf(":rootPackageJson")
+            )
+        }
+    }
+
     @DisplayName("Node.js run correctly works with configuration cache")
     @GradleTest
     fun testNodeJsRun(gradleVersion: GradleVersion) {
