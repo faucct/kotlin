@@ -208,7 +208,7 @@ fun FirResult.convertToIrAndActualizeForJvm(
         inlineConstTracker = configuration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
         expectActualTracker = configuration[CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER],
         allowNonCachedDeclarations = false,
-        useIrFakeOverrideBuilder = configuration.getBoolean(CommonConfigurationKeys.USE_IR_FAKE_OVERRIDE_BUILDER),
+        useIrFakeOverrideBuilder = true,
     )
 
     return convertToIrAndActualize(
