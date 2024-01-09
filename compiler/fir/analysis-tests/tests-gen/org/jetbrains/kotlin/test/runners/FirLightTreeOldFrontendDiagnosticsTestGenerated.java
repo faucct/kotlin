@@ -17804,6 +17804,12 @@ public class FirLightTreeOldFrontendDiagnosticsTestGenerated extends AbstractFir
                 }
 
                 @Test
+                @TestMetadata("onlyInputTypesRecursiveSuperTypes.kt")
+                public void testOnlyInputTypesRecursiveSuperTypes() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/inference/capturedTypes/onlyInputTypesRecursiveSuperTypes.kt");
+                }
+
+                @Test
                 @TestMetadata("overApproximationForInCaptured.kt")
                 public void testOverApproximationForInCaptured() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/inference/capturedTypes/overApproximationForInCaptured.kt");

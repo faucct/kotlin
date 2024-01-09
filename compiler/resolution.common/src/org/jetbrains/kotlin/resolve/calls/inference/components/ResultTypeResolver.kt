@@ -263,7 +263,16 @@ class ResultTypeResolver(
         for (constraint in constraints) {
             if (constraint.kind != ConstraintKind.LOWER) continue
 
-            val type = constraint.type
+            var type = constraint.type
+
+            // Captured types with recursive super types would be replaced with star projections in `computeCommonSuperType`.
+            // If the type variable is annotated with @OnlyInputTypes, this can lead to the resulting CST not comparing as equal to the type
+            // from the constraint when it otherwise would.
+            // K1 doesn't have this problem because captured types are approximated after completion.
+            if (isK2 && type.isCapturedType()) {
+                type = typeApproximator.approximateToSuperType(type, TypeApproximatorConfiguration.InternalTypesApproximation) ?: type
+            }
+
             lowerConstraintTypes.add(type)
 
             if (isProperTypeForFixation(type)) {
