@@ -129,7 +129,7 @@ Also, reified type parameters enable creating type-parametrised array creation o
 #### Type erasure
 
 On the other hand, non-reified type parameters continue behaving as their upper bounds.
-For example this code prints `I'm fine`, while would fail with reified type parameter.
+For example, this code prints `I'm fine`, while would fail with reified type parameter.
 ```kotlin
 inline fun <U> uncheckedCast(x: Any) {
   x as U
@@ -374,6 +374,9 @@ The second is semantic. What happens in this lowering would now be serialized to
 * They can't change publicly accessible signatures, because otherwise we must run them on LazyIr when using module as dependency
 
 Because of this, pre-inline lowerings should be avoided when possible. 
+
+One more thing, which doesn't exit as separate lowering for now, but probably should be done, is type erasure.
+We need too much context to do it, so we can't do it after inline function deserialization. Now it happens during inlining itself.
 
 ### Debug information
 
