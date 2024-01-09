@@ -289,7 +289,7 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
         return irInvoke(encoder, functionToCall, typeArguments = typeArgs, valueArguments = args, returnTypeHint = returnTypeHint)
     }
 
-    fun IrBuilderWithScope.callSerializerFromCompanion(
+    private fun IrBuilderWithScope.callSerializerFromCompanion(
         thisIrType: IrSimpleType,
         typeArgs: List<IrType>,
         args: List<IrExpression>,
@@ -321,6 +321,26 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
                 symbol,
                 adjustedTypeArgs.takeIf { it.size == typeParameters.size }.orEmpty(),
                 adjustedArgs.takeIf { it.size == valueParameters.size }.orEmpty()
+            )
+        }
+    }
+
+    private fun IrBuilderWithScope.callSerializerFromObject(
+        thisIrType: IrSimpleType,
+        args: List<IrExpression>,
+        // type parameters not allowed for object class, so its missed
+    ): IrExpression? {
+        val baseClass = thisIrType.getClass() ?: return null
+        val serializerProviderFunction = baseClass.declarations.singleOrNull {
+            it is IrFunction && it.name == SerialEntityNames.SERIALIZER_PROVIDER_NAME && it.valueParameters.size == baseClass.typeParameters.size
+        } ?: return null
+
+        with(serializerProviderFunction as IrFunction) {
+            return irInvoke(
+                irGetObject(baseClass),
+                symbol,
+                emptyList(),
+                args.takeIf { it.size == valueParameters.size }.orEmpty()
             )
         }
     }
@@ -504,8 +524,7 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
         if (serializerClassOriginal.owner.kind == ClassKind.OBJECT) {
             val serializerClass = serializerClassOriginal.owner
 
-            val samePackage =
-                serializerClass.classId != null && serializerClass.classId?.packageFqName == rootSerializableClass?.classId?.packageFqName
+            val samePackage = serializerClass.packageFqName == rootSerializableClass?.packageFqName
 
             // rootSerializableClass is only if the serializer is obtained for serializer getter
             //   In this case, the private serializer will always be located in the same package, otherwise a syntax error will occur.
@@ -513,9 +532,15 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
                 // we can access the serializer object directly only if it is not private, or is located in the same package as the class using it
                 irGetObject(serializerClassOriginal)
             } else {
-                val simpleType = (kType as? IrSimpleType) ?: error("Don't know how to work with type ${kType::class}")
-                callSerializerFromCompanion(simpleType, emptyList(), emptyList(), serializerClassOriginal.owner.classId)
-                    ?: error("Can't get serializer from companion's 'serializer()' function for type ${kType::class}")
+                val simpleType = (kType as? IrSimpleType) ?: error("Don't know how to work with type ${kType.classFqName}")
+
+                if (simpleType.getClass()?.isObject == true) {
+                    callSerializerFromObject(simpleType, emptyList())
+                        ?: error("Can't get serializer from 'serializer()' function for object ${kType.classFqName}")
+                } else {
+                    callSerializerFromCompanion(simpleType, emptyList(), emptyList(), serializerClassOriginal.owner.classId)
+                        ?: error("Can't get serializer from companion's 'serializer()' function for type ${kType.classFqName}")
+                }
             }
         }
         fun instantiate(serializer: IrClassSymbol?, type: IrType): IrExpression? {
