@@ -1078,8 +1078,7 @@ class GeneralNativeIT : KGPBaseTest() {
     fun testCompilerArgumentsLogLevel(gradleVersion: GradleVersion) {
         nativeProject("native-libraries", gradleVersion) {
             val updatedBuildOptions = buildOptions.copy(
-                compilerArgumentsLogLevel = "warning",
-                logLevel = LogLevel.LIFECYCLE, // to see task names
+                compilerArgumentsLogLevel = "warning"
             )
             build("assemble", buildOptions = updatedBuildOptions) {
                 val tasksWithNativeCompilerArguments = listOf(
@@ -1089,7 +1088,10 @@ class GeneralNativeIT : KGPBaseTest() {
                 )
                 for (task in tasksWithNativeCompilerArguments) {
                     val taskOutput = getOutputForTask(task, LogLevel.INFO)
-                    assertTrue(taskOutput.contains("Arguments = "))
+                    assertTrue(
+                        taskOutput.contains("Arguments = "),
+                        "Arguments were not logged by Task $task"
+                    )
                 }
             }
         }
