@@ -24,10 +24,10 @@ struct RunLoopFinalizerProcessorConfig {
     // How long can finalizers be processed in a single task. If some finalizer takes too long, the entire
     // batch of `batchSize` will overshoot this target.
     // This cannot be too large to allow the attached run loop process other tasks (not from this finalizer processor).
-    std::chrono::nanoseconds maxTimeInTask = std::chrono::milliseconds(5);
+    std::chrono::nanoseconds maxTimeInTask = std::chrono::milliseconds(300);
     // The minimum time between two tasks.
     // This cannot be too small to allow the attached run loop process other tasks (not from this finalizer processor).
-    std::chrono::nanoseconds minTimeBetweenTasks = std::chrono::milliseconds(10);
+    std::chrono::nanoseconds minTimeBetweenTasks = std::chrono::milliseconds(1);
     // How many finalizers are processed in a single batch in a single autoreleasepool.
     uint64_t batchSize = 100;
 };
