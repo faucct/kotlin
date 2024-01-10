@@ -127,7 +127,7 @@ class ExportModelToTsDeclarations {
     }
 
     private fun ExportedNamespace.generateTypeScriptString(indent: String, prefix: String): String {
-        return "${prefix}namespace $name {\n" + declarations.toTypeScript("$indent    ") + "$indent}"
+        return "${prefix.takeIf { !isLocal }.orEmpty()}namespace $name {\n" + declarations.toTypeScript("$indent    ") + "$indent}"
     }
 
     private fun ExportedConstructor.generateTypeScriptString(indent: String): String {

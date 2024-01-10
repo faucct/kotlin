@@ -94,12 +94,13 @@ class WasmBackendFacade(
         )
 
         val testPackage = extractTestPackage(testServices)
-        val (allModules, backendContext) = compileToLoweredIr(
+        val (allModules, backendContext, typeScriptFragment) = compileToLoweredIr(
             depsDescriptors = moduleStructure,
             phaseConfig = phaseConfig,
             irFactory = IrFactoryImpl,
             exportedDeclarations = setOf(FqName.fromSegments(listOfNotNull(testPackage, "box"))),
             propertyLazyInitialization = true,
+            generateTypeScriptFragment = generateDts
         )
         val generateWat = debugMode >= DebugMode.DEBUG
         val baseFileName = "index"
@@ -107,12 +108,12 @@ class WasmBackendFacade(
         val compilerResult = compileWasm(
             allModules = allModules,
             backendContext = backendContext,
+            typeScriptFragment = typeScriptFragment,
             baseFileName = baseFileName,
             emitNameSection = true,
             allowIncompleteImplementations = false,
             generateWat = generateWat,
             generateSourceMaps = generateSourceMaps,
-            generateDts = generateDts
         )
 
         val dceDumpNameCache = DceDumpNameCache()
@@ -123,12 +124,12 @@ class WasmBackendFacade(
         val compilerResultWithDCE = compileWasm(
             allModules = allModules,
             backendContext = backendContext,
+            typeScriptFragment = typeScriptFragment,
             baseFileName = baseFileName,
             emitNameSection = true,
             allowIncompleteImplementations = true,
             generateWat = generateWat,
             generateSourceMaps = generateSourceMaps,
-            generateDts = generateDts
         )
 
         return BinaryArtifacts.Wasm(

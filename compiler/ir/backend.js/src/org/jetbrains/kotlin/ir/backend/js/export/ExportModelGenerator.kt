@@ -798,7 +798,7 @@ fun IrDeclaration.isExportedImplicitlyOrExplicitly(context: JsIrBackendContext):
     return shouldDeclarationBeExportedImplicitlyOrExplicitly(candidate, context)
 }
 
-private fun DescriptorVisibility.toExportedVisibility() =
+fun DescriptorVisibility.toExportedVisibility() =
     when (this) {
         DescriptorVisibilities.PROTECTED -> ExportedVisibility.PROTECTED
         else -> ExportedVisibility.DEFAULT

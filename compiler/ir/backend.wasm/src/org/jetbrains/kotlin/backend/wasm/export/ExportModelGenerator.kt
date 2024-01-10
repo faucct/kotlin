@@ -6,53 +6,153 @@
 package org.jetbrains.kotlin.backend.wasm.export
 
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
-import org.jetbrains.kotlin.backend.wasm.ir2wasm.isExported
-import org.jetbrains.kotlin.backend.wasm.lower.KOTLIN_TO_JS_CLOSURE_ORIGIN
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.backend.js.export.*
 import org.jetbrains.kotlin.ir.backend.js.utils.getFqNameWithJsNameWhenAvailable
+import org.jetbrains.kotlin.ir.backend.js.utils.isJsExport
+import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.serialization.js.ModuleKind
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.isInterface
+import org.jetbrains.kotlin.utils.addToStdlib.butIf
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.memoryOptimizedFilter
 import org.jetbrains.kotlin.utils.memoryOptimizedFlatMap
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
+import org.jetbrains.kotlin.utils.memoryOptimizedMapNotNull
+
+private const val NOT_EXPORTED_NAMESPACE = "not.exported"
 
 class ExportModelGenerator(val context: WasmBackendContext) {
+    private val excludedFromExport = setOf<IrDeclaration>(
+        context.wasmSymbols.jsRelatedSymbols.jsReferenceClass.owner,
+        context.wasmSymbols.jsRelatedSymbols.jsAnyType.classOrFail.owner,
+        context.wasmSymbols.jsRelatedSymbols.jsNumberType.classOrFail.owner,
+        context.wasmSymbols.jsRelatedSymbols.jsStringType.classOrFail.owner,
+        context.wasmSymbols.jsRelatedSymbols.jsBooleanType.classOrFail.owner,
+        context.wasmSymbols.jsRelatedSymbols.jsBigIntType.classOrFail.owner
+    )
+
+    private fun collectAllTheDeclarationsToExport(modules: Iterable<IrModuleFragment>): Iterable<IrDeclaration> {
+        val declarationsToExport = mutableSetOf<IrDeclaration>()
+        val queue = ArrayDeque<IrDeclaration>().apply {
+            modules.asSequence()
+                .flatMap { it.files }
+                .flatMap { it.declarations }
+                .filter { it.isJsExport() }
+                .forEach {
+                    declarationsToExport.add(it)
+                    addLast(it)
+                }
+        }
+        val declarationVisitor = object : IrElementVisitorVoid {
+            override fun visitFunction(declaration: IrFunction) {
+                visitType(declaration.returnType)
+                declaration.typeParameters.flatMap { it.superTypes }.forEach(::visitType)
+                declaration.valueParameters.forEach { visitType(it.type) }
+            }
+
+            override fun visitClass(declaration: IrClass) {
+                declaration.typeParameters.flatMap { it.superTypes }.forEach(::visitType)
+                declaration.superTypes.forEach(::visitType)
+            }
+
+            override fun visitField(declaration: IrField) {
+                visitType(declaration.type)
+            }
+
+            private fun visitType(type: IrType) {
+                if (type !is IrSimpleType) return
+                val classifier = type.classifier as? IrClassSymbol ?: return
+                val klass = classifier.owner
+                if (!klass.isExternal || klass in excludedFromExport || klass in declarationsToExport) return
+                queue.add(klass)
+                declarationsToExport.add(klass)
+                type.arguments.forEach { it.typeOrNull?.let(::visitType) }
+            }
+        }
+
+        while (queue.isNotEmpty()) {
+            val declaration = queue.removeFirst()
+            declaration.acceptVoid(declarationVisitor)
+        }
+
+        return declarationsToExport
+    }
+
     fun generateExport(modules: Iterable<IrModuleFragment>): ExportedModule =
         ExportedModule(
             context.configuration[CommonConfigurationKeys.MODULE_NAME]!!,
             ModuleKind.ES,
-            modules.flatMap { it.files }.memoryOptimizedFlatMap {
-                generateExport(it)
-            }
+            collectAllTheDeclarationsToExport(modules).mapNotNull(::exportDeclaration)
         )
 
-
-    private fun generateExport(file: IrPackageFragment): List<ExportedDeclaration> =
-        file.declarations.memoryOptimizedFlatMap { declaration -> listOfNotNull(exportDeclaration(declaration)) }
-
-    private fun exportDeclaration(declaration: IrDeclaration): ExportedDeclaration? {
-        val candidate = getExportCandidate(declaration) ?: return null
-        return when (candidate) {
-            is IrSimpleFunction -> exportFunction(candidate)
-            else -> error("Can't export declaration $candidate")
-        }.withAttributesFor(candidate)
+    private fun exportDeclaration(declaration: IrDeclaration): ExportedDeclaration?? {
+        return when (declaration) {
+            is IrSimpleFunction -> exportFunction(declaration)
+            is IrClass -> exportClass(declaration)
+            else -> error("Can't export declaration $declaration")
+        }?.withAttributesFor(declaration)
     }
 
-    private fun exportFunction(function: IrSimpleFunction): ExportedFunction =
-        ExportedFunction(
-            function.getExportedIdentifier(),
-            returnType = exportType(function.returnType),
-            typeParameters = function.typeParameters.memoryOptimizedMap(::exportTypeParameter),
-            ir = function,
-            isProtected = false,
-            parameters = (listOfNotNull(function.extensionReceiverParameter) + function.valueParameters)
-                .memoryOptimizedMap { exportParameter(it) },
+    private fun exportFunction(function: IrSimpleFunction): ExportedFunction? =
+        runIf(function.correspondingPropertySymbol == null && function.realOverrideTarget.parentClassOrNull?.symbol != context.irBuiltIns.anyClass) {
+            val parentClass = function.parentClassOrNull
+            ExportedFunction(
+                function.getExportedIdentifier(),
+                returnType = exportType(function.returnType),
+                typeParameters = function.typeParameters.memoryOptimizedMap(::exportTypeParameter),
+                ir = function,
+                isMember = parentClass != null,
+                isStatic = function.isStaticMethodOfClass,
+                isProtected = function.visibility == DescriptorVisibilities.PROTECTED,
+                isAbstract = parentClass != null && !parentClass.isInterface && function.modality == Modality.ABSTRACT,
+                parameters = (listOfNotNull(function.extensionReceiverParameter) + function.valueParameters)
+                    .memoryOptimizedMap { exportParameter(it) },
+            )
+        }
+
+    private fun exportConstructor(constructor: IrConstructor): ExportedDeclaration {
+        assert(constructor.isPrimary) { "Can't export not-primary constructor" }
+        val allValueParameters = listOfNotNull(constructor.extensionReceiverParameter) + constructor.valueParameters
+        return ExportedConstructor(
+            parameters = allValueParameters.memoryOptimizedMap { exportParameter(it) },
+            visibility = constructor.visibility.toExportedVisibility()
         )
+    }
+
+    private fun exportProperty(
+        property: IrProperty,
+        specializeType: ExportedType? = null
+    ): ExportedDeclaration {
+        val parentClass = property.parent as? IrClass
+        val isOptional = parentClass != null &&
+                property.getter?.returnType?.isNullable() == true
+
+        return ExportedProperty(
+            name = property.getExportedIdentifier(),
+            type = specializeType ?: exportType(property.getter!!.returnType),
+            mutable = property.isVar,
+            isMember = parentClass != null,
+            isAbstract = parentClass?.isInterface == false && property.modality == Modality.ABSTRACT,
+            isProtected = property.visibility == DescriptorVisibilities.PROTECTED,
+            isField = parentClass?.isInterface == true,
+            irGetter = property.getter,
+            irSetter = property.setter,
+            isOptional = isOptional,
+            isStatic = (property.getter ?: property.setter)?.isStaticMethodOfClass == true,
+        )
+    }
 
     private fun exportParameter(parameter: IrValueParameter): ExportedParameter =
         ExportedParameter(
@@ -65,7 +165,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
 
     private fun exportType(type: IrType): ExportedType {
         if (type in currentlyProcessedTypes)
-            return ExportedType.Primitive.Any
+            return ExportedType.Primitive.Unknown
 
         if (type !is IrSimpleType)
             return ExportedType.ErrorType("NonSimpleType ${type.render()}")
@@ -79,11 +179,11 @@ class ExportModelGenerator(val context: WasmBackendContext) {
 
         val exportedType = when {
             nonNullType.isBoolean() || nonNullType == jsRelatedSymbols.jsBooleanType -> ExportedType.Primitive.Boolean
-            nonNullType.isLong() || nonNullType == jsRelatedSymbols.jsBigIntType -> ExportedType.Primitive.BigInt
-            nonNullType.isPrimitiveType() && !nonNullType.isChar() || nonNullType == jsRelatedSymbols.jsNumberType ->
+            nonNullType.isLong() || nonNullType.isULong() || nonNullType == jsRelatedSymbols.jsBigIntType -> ExportedType.Primitive.BigInt
+            nonNullType.isPrimitiveType() || nonNullType.isUByte() || nonNullType.isUShort() || nonNullType.isUInt() || nonNullType == jsRelatedSymbols.jsNumberType ->
                 ExportedType.Primitive.Number
-            nonNullType == jsRelatedSymbols.jsStringType -> ExportedType.Primitive.String
-            nonNullType == jsRelatedSymbols.jsAnyType -> ExportedType.Primitive.Unknown
+            nonNullType.isString() || nonNullType == jsRelatedSymbols.jsStringType -> ExportedType.Primitive.String
+            nonNullType.isAny() || nonNullType == jsRelatedSymbols.jsAnyType -> ExportedType.Primitive.Unknown
             nonNullType.isUnit() || nonNullType == context.wasmSymbols.voidType -> ExportedType.Primitive.Unit
             nonNullType.isFunction() -> ExportedType.Function(
                 parameterTypes = nonNullType.arguments.dropLast(1).memoryOptimizedMap { exportTypeArgument(it) },
@@ -95,9 +195,10 @@ class ExportModelGenerator(val context: WasmBackendContext) {
             classifier is IrClassSymbol -> {
                 val klass = classifier.owner
                 if (klass.symbol == jsRelatedSymbols.jsReferenceClass) return ExportedType.Primitive.Unknown
-                if (klass.isValue) return exportType(klass.primaryConstructor!!.valueParameters.first().type)
-                if (!klass.isExternal) return error("Unexpected class: ${klass.symbol}")
-                val name = klass.getFqNameWithJsNameWhenAvailable(shouldIncludePackage = false).asString()
+
+                require(klass.isExternal) { "Unexpected non-external class: ${klass.fqNameWhenAvailable}" }
+
+                val name = "$NOT_EXPORTED_NAMESPACE.${klass.getFqNameWithJsNameWhenAvailable(shouldIncludePackage = true).asString()}"
 
                 when (klass.kind) {
                     ClassKind.OBJECT ->
@@ -134,14 +235,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
     private fun exportTypeParameter(typeParameter: IrTypeParameter): ExportedType.TypeParameter {
         val constraint = typeParameter.superTypes.asSequence()
             .filter { it != context.irBuiltIns.anyNType }
-            .map {
-                val exportedType = exportType(it)
-                if (exportedType is ExportedType.ImplicitlyExportedType && exportedType.exportedSupertype == ExportedType.Primitive.Any) {
-                    exportedType.copy(exportedSupertype = ExportedType.Primitive.Unknown)
-                } else {
-                    exportedType
-                }
-            }
+            .map { exportType(it) }
             .filter { it !is ExportedType.ErrorType }
             .toList()
 
@@ -157,6 +251,61 @@ class ExportModelGenerator(val context: WasmBackendContext) {
         )
     }
 
-    private fun getExportCandidate(declaration: IrDeclaration): IrDeclarationWithName? =
-        (declaration as? IrSimpleFunction)?.takeIf { it.isExported() && it.origin != KOTLIN_TO_JS_CLOSURE_ORIGIN }
+    private fun exportMemberDeclaration(declaration: IrDeclaration): ExportedDeclaration? {
+        return when (declaration) {
+            is IrSimpleFunction -> exportFunction(declaration)
+            is IrConstructor -> exportConstructor(declaration)
+            is IrProperty -> exportProperty(declaration)
+            else -> null
+        }?.withAttributesFor(declaration)
+    }
+
+    private fun exportClass(declaration: IrClass): ExportedDeclaration {
+        val typeParameters = declaration.typeParameters.memoryOptimizedMap(::exportTypeParameter)
+
+        val superClass = declaration.superTypes
+            .find { it != context.irBuiltIns.anyType && !it.classifierOrFail.isInterface }
+            ?.let(::exportType)
+            ?.takeIf { it !is ExportedType.ErrorType }
+
+        val superInterfaces = declaration.superTypes
+            .filter { it != context.irBuiltIns.anyType && it.classifierOrFail.isInterface }
+            .map(::exportType)
+            .memoryOptimizedFilter { it !is ExportedType.ErrorType }
+
+        val name = declaration.getExportedIdentifier()
+        val members = declaration.declarations.memoryOptimizedMapNotNull(::exportMemberDeclaration)
+
+        val exportedDeclaration = if (declaration.kind == ClassKind.OBJECT) {
+            return ExportedObject(
+                ir = declaration,
+                name = name,
+                members = members,
+                superClasses = listOfNotNull(superClass),
+                nestedClasses = emptyList(),
+                superInterfaces = superInterfaces
+            )
+        } else {
+            ExportedRegularClass(
+                name = name,
+                isInterface = declaration.isInterface,
+                isAbstract = declaration.modality == Modality.ABSTRACT || declaration.modality == Modality.SEALED,
+                superClasses = listOfNotNull(superClass),
+                superInterfaces = superInterfaces,
+                typeParameters = typeParameters,
+                members = members,
+                nestedClasses = emptyList(),
+                ir = declaration
+            )
+        }
+
+        return ExportedNamespace(
+            name = "$NOT_EXPORTED_NAMESPACE${declaration.packageFqName?.asString()?.takeIf { it.isNotEmpty() }?.let { ".$it" }.orEmpty()}",
+            declarations = listOf(exportedDeclaration),
+            isLocal = true
+        )
+    }
+
+    private val IrClassifierSymbol.isInterface
+        get() = (owner as? IrClass)?.isInterface == true
 }

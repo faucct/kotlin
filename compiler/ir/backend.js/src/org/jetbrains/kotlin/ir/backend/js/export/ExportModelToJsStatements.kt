@@ -140,7 +140,7 @@ class ExportModelToJsStatements(
                         defineProperty(
                             namespace,
                             declaration.name,
-                            staticContext.getNameForStaticDeclaration(declaration.irGetter).makeRef(),
+                            staticContext.getNameForStaticDeclaration(declaration.irGetter!!).makeRef(),
                             null,
                             staticContext
                         ).makeStmt()

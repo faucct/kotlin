@@ -27,6 +27,7 @@ data class ExportedModule(
 class ExportedNamespace(
     val name: String,
     val declarations: List<ExportedDeclaration>,
+    val isLocal: Boolean = false
 ) : ExportedDeclaration()
 
 data class ExportedFunction(
@@ -100,7 +101,7 @@ data class ExportedObject(
     override val members: List<ExportedDeclaration>,
     override val nestedClasses: List<ExportedClass>,
     override val ir: IrClass,
-    val irGetter: IrSimpleFunction
+    val irGetter: IrSimpleFunction? = null
 ) : ExportedClass()
 
 class ExportedParameter(

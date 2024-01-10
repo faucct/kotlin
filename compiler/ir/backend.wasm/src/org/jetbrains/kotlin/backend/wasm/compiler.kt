@@ -20,6 +20,8 @@ import org.jetbrains.kotlin.ir.backend.js.MainModule
 import org.jetbrains.kotlin.ir.backend.js.ModulesStructure
 import org.jetbrains.kotlin.ir.backend.js.SourceMapsInfo
 import org.jetbrains.kotlin.ir.backend.js.export.ExportModelToTsDeclarations
+import org.jetbrains.kotlin.ir.backend.js.export.ExportedModule
+import org.jetbrains.kotlin.ir.backend.js.export.TypeScriptFragment
 import org.jetbrains.kotlin.ir.backend.js.loadIr
 import org.jetbrains.kotlin.ir.declarations.IrFactory
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -54,13 +56,20 @@ class DebugInformation(
     val sourceMapForText: String?,
 )
 
+data class LoweredIrWithExtraArtifacts(
+    val loweredIr: List<IrModuleFragment>,
+    val backendContext: WasmBackendContext,
+    val typeScriptFragment: TypeScriptFragment?
+)
+
 fun compileToLoweredIr(
     depsDescriptors: ModulesStructure,
     phaseConfig: PhaseConfig,
     irFactory: IrFactory,
     exportedDeclarations: Set<FqName> = emptySet(),
+    generateTypeScriptFragment: Boolean,
     propertyLazyInitialization: Boolean,
-): Pair<List<IrModuleFragment>, WasmBackendContext> {
+): LoweredIrWithExtraArtifacts {
     val mainModule = depsDescriptors.mainModule
     val configuration = depsDescriptors.compilerConfiguration
     val (moduleFragment, dependencyModules, irBuiltIns, symbolTable, irLinker) = loadIr(
@@ -95,6 +104,13 @@ fun compileToLoweredIr(
         for (file in module.files)
             markExportedDeclarations(context, file, exportedDeclarations)
 
+    val typeScriptFragment = runIf(generateTypeScriptFragment) {
+        val exportModel = ExportModelGenerator(context).generateExport(allModules)
+        val exportModelToDtsTranslator = ExportModelToTsDeclarations()
+        val fragment = exportModelToDtsTranslator.generateTypeScriptFragment(ModuleKind.ES, exportModel.declarations)
+        TypeScriptFragment(exportModelToDtsTranslator.generateTypeScript("", ModuleKind.ES, listOf(fragment)))
+    }
+
     val phaserState = PhaserState<IrModuleFragment>()
     loweringList.forEachIndexed { _, lowering ->
         allModules.forEach { module ->
@@ -102,18 +118,18 @@ fun compileToLoweredIr(
         }
     }
 
-    return Pair(allModules, context)
+    return LoweredIrWithExtraArtifacts(allModules, context, typeScriptFragment)
 }
 
 fun compileWasm(
     allModules: List<IrModuleFragment>,
     backendContext: WasmBackendContext,
+    typeScriptFragment: TypeScriptFragment?,
     baseFileName: String,
     emitNameSection: Boolean = false,
     allowIncompleteImplementations: Boolean = false,
     generateWat: Boolean = false,
     generateSourceMaps: Boolean = false,
-    generateDts: Boolean = false,
 ): WasmCompilerResult {
     val compiledWasmModule = WasmCompiledModuleFragment(
         backendContext.irBuiltIns,
@@ -167,13 +183,6 @@ fun compileWasm(
     }
 
 
-    val dts = runIf(generateDts) {
-        val exportModel = ExportModelGenerator(backendContext).generateExport(allModules)
-        val exportModelToDtsTranslator = ExportModelToTsDeclarations()
-        val fragment = exportModelToDtsTranslator.generateTypeScriptFragment(ModuleKind.ES, exportModel.declarations)
-        exportModelToDtsTranslator.generateTypeScript("", ModuleKind.ES, listOf(fragment))
-    }
-
     return WasmCompilerResult(
         wat = wat,
         jsUninstantiatedWrapper = jsUninstantiatedWrapper,
@@ -183,7 +192,7 @@ fun compileWasm(
             sourceMapGeneratorForBinary?.generate(),
             sourceMapGeneratorForText?.generate(),
         ),
-        dts = dts
+        dts = typeScriptFragment?.raw
     )
 }
 
