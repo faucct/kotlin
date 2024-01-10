@@ -111,4 +111,49 @@ TEST(RunLoopSourceTest, ConnectToDifferentLoop) {
     }
 }
 
+TEST(RunLoopSourceTest, Reconnect) {
+    Checkpoint checkpoint1;
+    Checkpoint checkpoint2;
+    objc_support::RunLoopSource source([&]() noexcept { checkpoint1.checkpoint(); });
+    objc_support::test_support::RunLoopInScopedThread runLoop([&]() noexcept { return 0; });
+
+    std::unique_ptr<objc_support::RunLoopSource::Subscription> subscription;
+
+    // Subscribe. Check that `source` is attached. Unsubscribe
+    checkpoint2.performAndWaitChange([&]() noexcept {
+        runLoop.schedule([&]() noexcept {
+            subscription = source.attachToCurrentRunLoop();
+            checkpoint2.checkpoint();
+        });
+    });
+    checkpoint1.performAndWaitChange([&]() noexcept {
+        source.signal();
+        runLoop.wakeUp();
+    });
+    checkpoint2.performAndWaitChange([&]() noexcept {
+        runLoop.schedule([&]() noexcept {
+            subscription = nullptr;
+            checkpoint2.checkpoint();
+        });
+    });
+
+    // Repeat the procedure.
+    checkpoint2.performAndWaitChange([&]() noexcept {
+        runLoop.schedule([&]() noexcept {
+            subscription = source.attachToCurrentRunLoop();
+            checkpoint2.checkpoint();
+        });
+    });
+    checkpoint1.performAndWaitChange([&]() noexcept {
+        source.signal();
+        runLoop.wakeUp();
+    });
+    checkpoint2.performAndWaitChange([&]() noexcept {
+        runLoop.schedule([&]() noexcept {
+            subscription = nullptr;
+            checkpoint2.checkpoint();
+        });
+    });
+}
+
 #endif

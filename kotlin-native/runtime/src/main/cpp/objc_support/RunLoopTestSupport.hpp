@@ -12,6 +12,7 @@
 
 #include "ScopedThread.hpp"
 #include "Utils.hpp"
+#include "objc_support/ObjectPtr.hpp"
 
 namespace kotlin::objc_support::test_support {
 
@@ -21,30 +22,53 @@ public:
     explicit RunLoopInScopedThread(Init init) noexcept :
         thread_([&]() noexcept {
             [[maybe_unused]] auto state = init();
-            runLoop_.store(CFRunLoopGetCurrent(), std::memory_order_release);
-            CFRunLoopRun();
+            runLoop_.reset(object_ptr_retain, CFRunLoopGetCurrent());
+            RuntimeAssert(*runLoop_ != nullptr, "Current run loop cannot be null");
+            changeState(State::kInitial, State::kRunning);
+            while (state_.load(std::memory_order_relaxed) == State::kRunning) {
+                CFRunLoopRun();
+            }
+            changeState(State::kWillStop, State::kStopped);
+            RuntimeAssert(*runLoop_ == nullptr, "Stored run loop must have been nulled");
         }) {
-        while (runLoop_.load(std::memory_order_acquire) == nullptr) {
+        while (state_.load(std::memory_order_relaxed) < State::kRunning) {
         }
+        std::atomic_thread_fence(std::memory_order_acquire);
     }
 
     ~RunLoopInScopedThread() {
-        CFRunLoopStop(runLoop_.load(std::memory_order_relaxed));
-        thread_.join();
+        object_ptr<CFRunLoopRef> runLoop = std::move(runLoop_);
+        changeState(State::kRunning, State::kWillStop);
+        CFRunLoopStop(*runLoop);
     }
 
-    CFRunLoopRef handle() noexcept { return runLoop_.load(std::memory_order_relaxed); }
+    CFRunLoopRef handle() noexcept { return *runLoop_; }
 
-    void wakeUp() noexcept { CFRunLoopWakeUp(runLoop_.load(std::memory_order_relaxed)); }
+    void wakeUp() noexcept { CFRunLoopWakeUp(*runLoop_); }
 
     void schedule(std::function<void()> f) noexcept {
-        CFRunLoopPerformBlock(runLoop_.load(std::memory_order_relaxed), kCFRunLoopDefaultMode, ^{
-            return f();
+        CFRunLoopPerformBlock(*runLoop_, kCFRunLoopDefaultMode, ^{
+            f();
         });
+        CFRunLoopWakeUp(*runLoop_);
     }
 
 private:
-    std::atomic<CFRunLoopRef> runLoop_ = nullptr;
+    enum class State {
+        kInitial,
+        kRunning,
+        kWillStop,
+        kStopped,
+    };
+
+    void changeState(State expected, State desired) noexcept {
+        auto actual = expected;
+        state_.compare_exchange_strong(actual, desired, std::memory_order_acq_rel);
+        RuntimeAssert(actual == expected, "Expected state to be %d but was %d", expected, actual);
+    }
+
+    object_ptr<CFRunLoopRef> runLoop_;
+    std::atomic<State> state_ = State::kInitial;
     ScopedThread thread_;
 };
 
