@@ -70,7 +70,7 @@ class CompilerArgumentsLogLevelTest {
             preApplyCode = {
                 project.extraProperties.set(
                     "kotlin.internal.compiler.arguments.log.level",
-                    KotlinCompilerArgumentsLogLevel.WARNING
+                    "warning"
                 )
             }
         ) {
