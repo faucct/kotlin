@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
+import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractContextCollectorTest.Directives.FILE_COPY
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getFirResolveSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirScriptTestConfigurator
@@ -18,7 +19,6 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvedImport
 import org.jetbrains.kotlin.fir.declarations.FirTowerDataContext
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.resolve.SessionHolderImpl
-import org.jetbrains.kotlin.fir.resolve.dfa.Identifier
 import org.jetbrains.kotlin.fir.resolve.dfa.RealVariable
 import org.jetbrains.kotlin.fir.scopes.*
 import org.jetbrains.kotlin.fir.scopes.impl.*
@@ -29,26 +29,57 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
+import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
 import java.lang.IllegalArgumentException
 
 abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedSingleModuleTest() {
+    override fun configureTest(builder: TestConfigurationBuilder) {
+        super.configureTest(builder)
+
+        builder.apply {
+            useDirectives(Directives)
+            forTestsMatching("analysis/low-level-api-fir/testData/contextCollector/fileCopy/*") {
+                defaultDirectives {
+                    +FILE_COPY
+                }
+            }
+        }
+    }
+
     override fun doTestByFileStructure(ktFiles: List<KtFile>, module: TestModule, testServices: TestServices) {
         val mainKtFile = ktFiles.singleOrNull() ?: ktFiles.single { it.name == "main.kt" }
+        testFile(mainKtFile, testServices, testPrefix = null)
 
-        val project = mainKtFile.project
-        val sourceModule = ProjectStructureProvider.getModule(project, mainKtFile, contextualModule = null)
+        val fakeKtFile = createFileCopy(mainKtFile)
+        testFile(fakeKtFile, testServices, testPrefix = "copy")
+    }
+
+    private fun createFileCopy(ktFile: KtFile): KtFile {
+        val fakeFile = ktFile.copy() as KtFile
+
+        assert(fakeFile.originalFile == ktFile)
+        assert(!fakeFile.isPhysical)
+        assert(!fakeFile.viewProvider.isEventSystemEnabled)
+
+        return fakeFile
+    }
+
+    private fun testFile(ktFile: KtFile, testServices: TestServices, testPrefix: String?) {
+        val project = ktFile.project
+        val sourceModule = ProjectStructureProvider.getModule(project, ktFile, contextualModule = null)
 
         val resolveSession = sourceModule.getFirResolveSession(project)
         val session = resolveSession.useSiteFirSession
         val sessionHolder = SessionHolderImpl(session, session.getScopeSession())
 
-        val firFile = mainKtFile.getOrBuildFirFile(resolveSession)
+        val firFile = ktFile.getOrBuildFirFile(resolveSession)
 
         val targetElement = testServices.expressionMarkerProvider
-            .getBottommostSelectedElementOfType(mainKtFile, KtElement::class.java)
+            .getBottommostSelectedElementOfType(ktFile, KtElement::class.java)
 
         val elementContext = ContextCollector.process(firFile, sessionHolder, targetElement)
             ?: error("Context not found for element $targetElement")
@@ -61,7 +92,27 @@ abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedSingleModu
             append(firRenderer.renderElementAsString(firFile, trim = true))
         }
 
-        testServices.assertions.assertEqualsToTestDataFileSibling(actualText)
+        testServices.assertions.assertEqualsToTestDataFileSibling(actualText, testPrefix = testPrefix)
+    }
+
+    private fun getMainFile(ktFiles: List<KtFile>, module: TestModule): KtFile {
+        val mainFile = ktFiles.singleOrNull() ?: ktFiles.single { it.name == "main.kt" }
+
+        if (module.directives.contains(FILE_COPY)) {
+            val fakeFile = mainFile.copy() as KtFile
+
+            assert(fakeFile.originalFile == mainFile)
+            assert(!fakeFile.isPhysical)
+            assert(!fakeFile.viewProvider.isEventSystemEnabled)
+
+            return fakeFile
+        }
+
+        return mainFile
+    }
+
+    private object Directives : SimpleDirectivesContainer() {
+        val FILE_COPY by directive(description = "Analyze the file as an in-memory copy")
     }
 }
 
