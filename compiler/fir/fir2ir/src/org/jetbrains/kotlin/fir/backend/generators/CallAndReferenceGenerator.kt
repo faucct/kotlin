@@ -537,8 +537,8 @@ class CallAndReferenceGenerator(
 
                     is IrFieldSymbol -> IrGetFieldImpl(
                         startOffset, endOffset, symbol, irType,
-                        origin = IrStatementOrigin.GET_PROPERTY.takeIf { calleeReference !is FirDelegateFieldReference },
-                            superQualifierSymbol = dispatchReceiver?.superQualifierSymbol()
+                        origin = null,
+                        superQualifierSymbol = dispatchReceiver?.superQualifierSymbol()
                     )
 
                     is IrValueSymbol -> {
