@@ -189,8 +189,6 @@ fun createKPropertyType(
 fun BodyResolveComponents.buildResolvedQualifierForClass(
     regularClass: FirClassLikeSymbol<*>,
     sourceElement: KtSourceElement? = null,
-    // TODO: Clarify if we actually need type arguments for qualifier?
-    typeArgumentsForQualifier: List<FirTypeProjection> = emptyList(),
     diagnostic: ConeDiagnostic? = null,
     nonFatalDiagnostics: List<ConeDiagnostic> = emptyList(),
     annotations: List<FirAnnotation> = emptyList(),
@@ -207,7 +205,6 @@ fun BodyResolveComponents.buildResolvedQualifierForClass(
         source = sourceElement
         packageFqName = classId.packageFqName
         relativeClassFqName = classId.relativeClassName
-        typeArguments.addAll(typeArgumentsForQualifier)
         symbol = regularClass
         this.nonFatalDiagnostics.addAll(nonFatalDiagnostics)
         this.annotations.addAll(annotations)

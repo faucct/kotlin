@@ -337,7 +337,6 @@ class FirCallResolver(
                 return components.buildResolvedQualifierForClass(
                     referencedSymbol,
                     qualifiedAccess.source,
-                    qualifiedAccess.typeArguments,
                     diagnostic ?: extractNestedClassAccessDiagnostic(nameReference.source, qualifiedAccess.explicitReceiver, referencedSymbol),
                     nonFatalDiagnostics = extractNonFatalDiagnostics(
                         nameReference.source,
