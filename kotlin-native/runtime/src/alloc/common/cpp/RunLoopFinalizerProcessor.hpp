@@ -61,8 +61,8 @@ public:
         explicit Subscription(RunLoopFinalizerProcessor& owner) noexcept :
             sourceSubscription_(owner.source_.attachToCurrentRunLoop()), timerSubscription_(owner.timer_.attachToCurrentRunLoop()) {}
 
-        objc_support::RunLoopSource::Subscription sourceSubscription_;
-        objc_support::RunLoopTimer::Subscription timerSubscription_;
+        std::unique_ptr<objc_support::RunLoopSource::Subscription> sourceSubscription_;
+        std::unique_ptr<objc_support::RunLoopTimer::Subscription> timerSubscription_;
     };
 
     // The constructed processor is not attached to any run loop, and so will not be processing
@@ -101,11 +101,8 @@ private:
             std::unique_lock guard(configMutex_);
             auto minStartTime = lastProcessTimestamp_ + config_.minTimeBetweenTasks;
             if (startTime < minStartTime) {
-                auto interval = minStartTime - startTime;
-                // TODO: std::common_type between `saturating<…>` and `double` failed. Figure out how to fix properly.
-                using UnsaturatedDuration = std::chrono::duration<decltype(interval)::rep::value_type, decltype(interval)::period>;
                 // `process` is being called too frequently. Wait until the next allowed time.
-                timer_.setNextFiring(std::chrono::duration_cast<UnsaturatedDuration>(interval));
+                timer_.setNextFiring(minStartTime - startTime);
                 return;
             }
         }
@@ -187,7 +184,7 @@ private:
     objc_support::RunLoopSource source_{[this]() noexcept { process(); }};
     // `timer_` is triggered manually with `setNextFiring`, so `interval` and `initialFiring` are set very high.
     // This follows https://developer.apple.com/documentation/corefoundation/1542501-cfrunlooptimersetnextfiredate#discussion
-    objc_support::RunLoopTimer timer_{[this]() noexcept { source_.signal(); }, std::chrono::hours(100), std::chrono::hours(100)};
+    objc_support::RunLoopTimer timer_{[this]() noexcept { source_.signal(); }, std::chrono::hours(100), std::chrono::system_clock::now() + std::chrono::hours(100)};
 };
 
 #endif
