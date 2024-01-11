@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.findIsInstanceAnd
 
+private const val NonNullable = "NonNullable"
 private const val Nullable = "Nullable"
 private const val objects = "_objects_"
 private const val declare = "declare "
@@ -444,6 +445,7 @@ class ExportModelToTsDeclarations {
 
         is ExportedType.ErrorType -> if (isInCommentContext) comment else "any /*$comment*/"
         is ExportedType.Nullable -> "$Nullable<" + baseType.toTypeScript(indent, isInCommentContext) + ">"
+        is ExportedType.NonNullable -> "$NonNullable<" + baseType.toTypeScript(indent, isInCommentContext) + ">"
         is ExportedType.InlineInterfaceType -> {
             members.joinToString(prefix = "{\n", postfix = "$indent}", separator = "") { it.toTypeScript("$indent    ") + "\n" }
         }

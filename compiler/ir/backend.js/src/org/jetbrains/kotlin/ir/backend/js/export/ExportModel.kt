@@ -123,11 +123,14 @@ sealed class ExportedType {
         object String : Primitive("string")
         object Throwable : Primitive("Error")
         object Any : Primitive("any")
-        object Unknown : Primitive("unknown")
         object Undefined : Primitive("undefined")
         object Unit : Primitive("void")
         object Nothing : Primitive("never")
         object UniqueSymbol : Primitive("unique symbol")
+        object Unknown : Primitive("unknown") {
+            override fun withNullability(nullable: kotlin.Boolean) =
+                if (nullable) this else NonNullable(this)
+        }
     }
 
     sealed class LiteralType<T : Any>(val value: T) : ExportedType() {
@@ -144,6 +147,7 @@ sealed class ExportedType {
     class ClassType(val name: String, val arguments: List<ExportedType>, val ir: IrClass) : ExportedType()
     class TypeParameter(val name: String, val constraint: ExportedType? = null) : ExportedType()
     class Nullable(val baseType: ExportedType) : ExportedType()
+    class NonNullable(val baseType: ExportedType) : ExportedType()
     class ErrorType(val comment: String) : ExportedType()
     class TypeOf(val name: String) : ExportedType()
 

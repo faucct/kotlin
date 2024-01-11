@@ -1,12 +1,12 @@
 type Nullable<T> = T | null | undefined
 export declare function getResult(): not.exported.org.second.Result<string>;
 declare namespace not.exported.org.second {
-    class Result<T> extends not.exported.org.second.BaseResult<T> {
+    class Result<T extends NonNullable<unknown>> extends not.exported.org.second.BaseResult<T> {
         constructor();
     }
 }
 declare namespace not.exported.org.second {
-    abstract class BaseResult<T> {
+    abstract class BaseResult<T extends NonNullable<unknown>> {
         constructor(foo: typeof not.exported.org.second.Foo);
     }
 }

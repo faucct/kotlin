@@ -240,7 +240,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
 
     private fun exportTypeParameter(typeParameter: IrTypeParameter): ExportedType.TypeParameter {
         val constraint = typeParameter.superTypes.asSequence()
-            .filter { it.makeNotNull() != context.wasmSymbols.jsRelatedSymbols.jsAnyType }
+            .filter { !it.isNullable() || it.makeNotNull() != context.wasmSymbols.jsRelatedSymbols.jsAnyType }
             .map { exportType(it) }
             .filter { it !is ExportedType.ErrorType }
             .toList()
