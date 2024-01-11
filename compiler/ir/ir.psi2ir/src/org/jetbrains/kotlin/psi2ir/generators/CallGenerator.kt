@@ -214,8 +214,7 @@ internal class CallGenerator(statementGenerator: StatementGenerator) : Statement
                     fieldSymbol,
                     irType,
                     dispatchReceiverValue?.load() ?: extensionReceiverValue?.load(),
-                    origin = null,
-                    superQualifierSymbol
+                    superQualifierSymbol = superQualifierSymbol
                 ).also { context.callToSubstitutedDescriptorMap[it] = descriptor }
             }
         } else {
