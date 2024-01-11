@@ -58,13 +58,13 @@ public:
     // Create `RunLoopSource` with `callback` that will be invoked each time, when an attached run loop processes this timer.
     // `interval` sets the desired time between timer firing (the system will try to make the average time between firings be at least
     // `interval`, but the time between 2 consecutive tasks may be smaller if the current average is larger).
-    // `initialFiring` sets the minimum time before the timer can be fired for the first time.
+    // `fireDate` sets the minimum time before the timer can be fired for the first time.
     RunLoopTimer(
-            std::function<void()> callback, std::chrono::duration<double> interval, std::chrono::duration<double> initialFiring) noexcept :
+            std::function<void()> callback, std::chrono::duration<double> interval, std::chrono::system_clock::time_point fireDate) noexcept :
         callback_(std::move(callback)),
         timerContext_{0, &callback_, nullptr, nullptr, nullptr},
         timer_(CFRunLoopTimerCreate(
-                nullptr, CFAbsoluteTimeGetCurrent() + initialFiring.count(), interval.count(), 0, 0, &perform, &timerContext_)) {}
+                nullptr, convertToCF(fireDate), interval.count(), 0, 0, &perform, &timerContext_)) {}
 
     ~RunLoopTimer() {
         auto* subscription = activeSubscription_.load(std::memory_order_relaxed);
@@ -74,10 +74,17 @@ public:
     // Raw pointer to `CFRunLoopTimer`.
     auto handle() noexcept { return timer_; }
 
+    // `at` overrides the minimum time before the next timer firing. The override is for the next firing
+    // only, after it, the initially supplied `interval` will be used again.
+    void setNextFiring(std::chrono::system_clock::time_point at) noexcept {
+        CFRunLoopTimerSetNextFireDate(*timer_, convertToCF(at));
+    }
+
     // `interval` overrides the minimum time before the next timer firing. The override is for the next firing
     // only, after it, the initially supplied `interval` will be used again.
-    void setNextFiring(std::chrono::duration<double> interval) noexcept {
-        CFRunLoopTimerSetNextFireDate(*timer_, CFAbsoluteTimeGetCurrent() + interval.count());
+    template <typename Duration>
+    void setNextFiring(Duration interval) noexcept {
+        setNextFiring(std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(interval));
     }
 
     // Attach this `RunLoopTimer` to the current thread's run loop.
@@ -86,6 +93,12 @@ public:
     }
 
 private:
+    // TODO: Consider doing `cf_clock` that's like `std::chrono` but uses CF under the hood.
+    static CFAbsoluteTime convertToCF(std::chrono::system_clock::time_point at) noexcept {
+        std::chrono::duration<double> unixTime = at.time_since_epoch();
+        return unixTime.count() - kCFAbsoluteTimeIntervalSince1970;
+    }
+
     static void perform(CFRunLoopTimerRef, void* callback) noexcept { static_cast<decltype(callback_)*>(callback)->operator()(); }
 
     void registerSubscription(Subscription& subscription) noexcept {

@@ -21,7 +21,7 @@ TEST(RunLoopTimerTest, MainThread) {
     constexpr auto initialTimeout = std::chrono::milliseconds(50);
     constexpr auto interval = std::chrono::milliseconds(10);
     steady_clock::time_point start = steady_clock::now();
-    objc_support::RunLoopTimer timer(callback.AsStdFunction(), interval, initialTimeout);
+    objc_support::RunLoopTimer timer(callback.AsStdFunction(), interval, std::chrono::system_clock::now() + initialTimeout);
     auto subscription = timer.attachToCurrentRunLoop();
     {
         testing::InSequence seq;
@@ -44,7 +44,7 @@ TEST(RunLoopTimerTest, MainThread) {
 
 TEST(RunLoopTimerTest, RepeatedTimer) {
     testing::StrictMock<testing::MockFunction<void()>> callback;
-    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::microseconds(10), std::chrono::seconds(0));
+    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::microseconds(10), std::chrono::system_clock::now() + std::chrono::seconds(0));
     std::atomic<int> counter = 0;
     EXPECT_CALL(callback, Call()).WillRepeatedly([&] { counter.fetch_add(1, std::memory_order_relaxed); });
     objc_support::test_support::RunLoopInScopedThread runLoop([&]() { return timer.attachToCurrentRunLoop(); });
@@ -55,7 +55,7 @@ TEST(RunLoopTimerTest, RepeatedTimer) {
 
 TEST(RunLoopTimerTest, EffectivelyOneShotTimer) {
     testing::StrictMock<testing::MockFunction<void()>> callback;
-    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::microseconds(10));
+    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::system_clock::now() + std::chrono::microseconds(10));
     std::atomic<int> counter = 0;
     EXPECT_CALL(callback, Call()).WillOnce([&] { counter.fetch_add(1, std::memory_order_relaxed); });
     objc_support::test_support::RunLoopInScopedThread runLoop([&]() { return timer.attachToCurrentRunLoop(); });
@@ -67,7 +67,7 @@ TEST(RunLoopTimerTest, EffectivelyOneShotTimer) {
 
 TEST(RunLoopTimerTest, EffectivelyNeverTimer) {
     testing::StrictMock<testing::MockFunction<void()>> callback;
-    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::hours(10));
+    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::system_clock::now() + std::chrono::hours(10));
     EXPECT_CALL(callback, Call()).Times(0);
     objc_support::test_support::RunLoopInScopedThread runLoop([&]() { return timer.attachToCurrentRunLoop(); });
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -75,7 +75,7 @@ TEST(RunLoopTimerTest, EffectivelyNeverTimer) {
 
 TEST(RunLoopTimerTest, RescheduleTimer) {
     testing::StrictMock<testing::MockFunction<void()>> callback;
-    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::hours(10));
+    objc_support::RunLoopTimer timer(callback.AsStdFunction(), std::chrono::hours(10), std::chrono::system_clock::now() + std::chrono::hours(10));
     objc_support::test_support::RunLoopInScopedThread runLoop([&]() { return timer.attachToCurrentRunLoop(); });
     std::atomic<int> counter = 0;
     EXPECT_CALL(callback, Call()).WillOnce([&] { counter.fetch_add(1, std::memory_order_relaxed); });
