@@ -392,7 +392,7 @@ private class StubGenerator(
                 print(method.name, "(")
                 method.parameterList.parameters.forEachIndexed{ index, parameter ->
                     if (index > 0) print(", ")
-                    printTypeSignature(parameter.type)
+                    printTypeSignature(parameter.type, false)
                 }
                 print(")")
             }
@@ -433,7 +433,7 @@ private class StubGenerator(
                 printTypeSignature(type, true)
             }
 
-            private fun Printer.printTypeSignature(type: PsiType, annotated: Boolean = false) {
+            private fun Printer.printTypeSignature(type: PsiType, annotated: Boolean) {
                 printWithNoIndent((if (type is PsiClassType && isErroneous(type)) type.rawType() else type).getCanonicalText(annotated).replace('$', '.'))
             }
 
