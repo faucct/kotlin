@@ -184,7 +184,8 @@ private:
     objc_support::RunLoopSource source_{[this]() noexcept { process(); }};
     // `timer_` is triggered manually with `setNextFiring`, so `interval` and `initialFiring` are set very high.
     // This follows https://developer.apple.com/documentation/corefoundation/1542501-cfrunlooptimersetnextfiredate#discussion
-    objc_support::RunLoopTimer timer_{[this]() noexcept { source_.signal(); }, std::chrono::hours(100), std::chrono::system_clock::now() + std::chrono::hours(100)};
+    objc_support::RunLoopTimer timer_{
+            [this]() noexcept { source_.signal(); }, std::chrono::hours(100), std::chrono::system_clock::now() + std::chrono::hours(100)};
 };
 
 #endif
