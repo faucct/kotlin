@@ -537,7 +537,6 @@ class CallAndReferenceGenerator(
 
                     is IrFieldSymbol -> IrGetFieldImpl(
                         startOffset, endOffset, symbol, irType,
-                        origin = null,
                         superQualifierSymbol = dispatchReceiver?.superQualifierSymbol()
                     )
 
