@@ -27,7 +27,7 @@ data class ExportedModule(
 class ExportedNamespace(
     val name: String,
     val declarations: List<ExportedDeclaration>,
-    val isLocal: Boolean = false
+    val isPrivate: Boolean = false
 ) : ExportedDeclaration()
 
 data class ExportedFunction(

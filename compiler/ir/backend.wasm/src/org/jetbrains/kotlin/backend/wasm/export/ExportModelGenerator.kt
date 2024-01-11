@@ -21,13 +21,11 @@ import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.serialization.js.ModuleKind
-import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.isInterface
-import org.jetbrains.kotlin.utils.addToStdlib.butIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.memoryOptimizedFilter
-import org.jetbrains.kotlin.utils.memoryOptimizedFlatMap
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
 import org.jetbrains.kotlin.utils.memoryOptimizedMapNotNull
 
@@ -58,17 +56,25 @@ class ExportModelGenerator(val context: WasmBackendContext) {
         val declarationVisitor = object : IrElementVisitorVoid {
             override fun visitFunction(declaration: IrFunction) {
                 visitType(declaration.returnType)
-                declaration.typeParameters.flatMap { it.superTypes }.forEach(::visitType)
-                declaration.valueParameters.forEach { visitType(it.type) }
+                declaration.typeParameters.forEach(::visitTypeParameter)
+                declaration.valueParameters.forEach(::visitValueParameter)
             }
 
             override fun visitClass(declaration: IrClass) {
-                declaration.typeParameters.flatMap { it.superTypes }.forEach(::visitType)
                 declaration.superTypes.forEach(::visitType)
+                declaration.acceptChildrenVoid(this)
             }
 
             override fun visitField(declaration: IrField) {
                 visitType(declaration.type)
+            }
+
+            override fun visitValueParameter(declaration: IrValueParameter) {
+                visitType(declaration.type)
+            }
+
+            override fun visitTypeParameter(declaration: IrTypeParameter) {
+                declaration.superTypes.forEach(::visitType)
             }
 
             private fun visitType(type: IrType) {
@@ -183,7 +189,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
             nonNullType.isPrimitiveType() || nonNullType.isUByte() || nonNullType.isUShort() || nonNullType.isUInt() || nonNullType == jsRelatedSymbols.jsNumberType ->
                 ExportedType.Primitive.Number
             nonNullType.isString() || nonNullType == jsRelatedSymbols.jsStringType -> ExportedType.Primitive.String
-            nonNullType.isAny() || nonNullType == jsRelatedSymbols.jsAnyType -> ExportedType.Primitive.Unknown
+            nonNullType == jsRelatedSymbols.jsAnyType -> ExportedType.Primitive.Unknown
             nonNullType.isUnit() || nonNullType == context.wasmSymbols.voidType -> ExportedType.Primitive.Unit
             nonNullType.isFunction() -> ExportedType.Function(
                 parameterTypes = nonNullType.arguments.dropLast(1).memoryOptimizedMap { exportTypeArgument(it) },
@@ -234,7 +240,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
 
     private fun exportTypeParameter(typeParameter: IrTypeParameter): ExportedType.TypeParameter {
         val constraint = typeParameter.superTypes.asSequence()
-            .filter { it != context.irBuiltIns.anyNType }
+            .filter { it.makeNotNull() != context.wasmSymbols.jsRelatedSymbols.jsAnyType }
             .map { exportType(it) }
             .filter { it !is ExportedType.ErrorType }
             .toList()
@@ -252,6 +258,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
     }
 
     private fun exportMemberDeclaration(declaration: IrDeclaration): ExportedDeclaration? {
+        if (declaration !is IrDeclarationWithVisibility || declaration.visibility == DescriptorVisibilities.PRIVATE) return null
         return when (declaration) {
             is IrSimpleFunction -> exportFunction(declaration)
             is IrConstructor -> exportConstructor(declaration)
@@ -269,7 +276,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
             ?.takeIf { it !is ExportedType.ErrorType }
 
         val superInterfaces = declaration.superTypes
-            .filter { it != context.irBuiltIns.anyType && it.classifierOrFail.isInterface }
+            .filter { it != context.wasmSymbols.jsRelatedSymbols.jsAnyType && it.classifierOrFail.isInterface }
             .map(::exportType)
             .memoryOptimizedFilter { it !is ExportedType.ErrorType }
 
@@ -277,7 +284,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
         val members = declaration.declarations.memoryOptimizedMapNotNull(::exportMemberDeclaration)
 
         val exportedDeclaration = if (declaration.kind == ClassKind.OBJECT) {
-            return ExportedObject(
+            ExportedObject(
                 ir = declaration,
                 name = name,
                 members = members,
@@ -302,7 +309,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
         return ExportedNamespace(
             name = "$NOT_EXPORTED_NAMESPACE${declaration.packageFqName?.asString()?.takeIf { it.isNotEmpty() }?.let { ".$it" }.orEmpty()}",
             declarations = listOf(exportedDeclaration),
-            isLocal = true
+            isPrivate = true
         )
     }
 

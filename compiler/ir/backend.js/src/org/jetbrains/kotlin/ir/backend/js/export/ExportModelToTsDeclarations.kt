@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.ir.backend.js.export
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
 import org.jetbrains.kotlin.ir.backend.js.lower.isEs6PrimaryConstructorReplacement
-import org.jetbrains.kotlin.ir.backend.js.lower.isSyntheticPrimaryConstructor
 import org.jetbrains.kotlin.ir.backend.js.utils.JsAnnotations
 import org.jetbrains.kotlin.ir.backend.js.utils.getFqNameWithJsNameWhenAvailable
 import org.jetbrains.kotlin.ir.backend.js.utils.getJsNameOrKotlinName
@@ -127,7 +126,7 @@ class ExportModelToTsDeclarations {
     }
 
     private fun ExportedNamespace.generateTypeScriptString(indent: String, prefix: String): String {
-        return "${prefix.takeIf { !isLocal }.orEmpty()}namespace $name {\n" + declarations.toTypeScript("$indent    ") + "$indent}"
+        return "${prefix.takeIf { !isPrivate } ?: "declare "}namespace $name {\n" + declarations.toTypeScript("$indent    ") + "$indent}"
     }
 
     private fun ExportedConstructor.generateTypeScriptString(indent: String): String {
