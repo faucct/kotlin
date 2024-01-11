@@ -491,6 +491,9 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val suppressExperimentalArtifactsDslWarning: Boolean
         get() = booleanProperty(KOTLIN_NATIVE_SUPPRESS_EXPERIMENTAL_ARTIFACTS_DSL_WARNING) ?: false
 
+    val cocoapodsExecutablePath: String?
+        get() = property(PropertyNames.KOTLIN_NATIVE_COCOAPODS_EXECUTABLE).orNull
+
     /**
      * Allows the user to specify a custom location for the Kotlin/Native distribution.
      * This property takes precedence over the 'KONAN_DATA_DIR' environment variable.
@@ -644,6 +647,7 @@ internal class PropertiesProvider private constructor(private val project: Proje
         val KOTLIN_PROJECT_PERSISTENT_DIR = property("kotlin.project.persistent.dir")
         val KOTLIN_PROJECT_PERSISTENT_DIR_GRADLE_DISABLE_WRITE = property("kotlin.project.persistent.dir.gradle.disableWrite")
         val KOTLIN_APPLE_COPY_FRAMEWORK_TO_BUILT_PRODUCTS_DIR = property("kotlin.apple.copyFrameworkToBuiltProductsDir")
+        val KOTLIN_NATIVE_COCOAPODS_EXECUTABLE = property("kotlin.cocoapods.bin")
 
         /**
          * Internal properties: builds get big non-suppressible warning when such properties are used

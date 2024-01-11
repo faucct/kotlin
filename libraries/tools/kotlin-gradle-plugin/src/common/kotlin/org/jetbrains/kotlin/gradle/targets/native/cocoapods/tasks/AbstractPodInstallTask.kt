@@ -11,8 +11,10 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.utils.CommandFallback
 import org.jetbrains.kotlin.gradle.utils.onlyIfCompat
+import org.jetbrains.kotlin.gradle.utils.runCommand
 import org.jetbrains.kotlin.gradle.utils.runCommandWithFallback
 import java.io.File
 
@@ -54,11 +56,25 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
         }
     }
 
+    private fun runWhichPod(): String {
+        val checkPodCommand = listOf("which", "pod")
+        val output = runCommand(checkPodCommand, logger, { retCode, error, process ->
+            if (error.isNotBlank()) {
+                sharedHandleError(checkPodCommand, retCode, error, process)
+            } else {
+                missingPodsError()
+            }
+        })
+
+        return if (output.isNotBlank()) "pod" else throw IllegalStateException(missingPodsError())
+    }
+
     private fun runPodInstall(updateRepo: Boolean): String {
+        val podExecutable = PropertiesProvider(project).cocoapodsExecutablePath ?: runWhichPod()
         // env is used here to work around the JVM PATH caching when spawning a child process with custom environment, i.e. LC_ALL
         // The caching causes the ProcessBuilder to ignore changes in the PATH that may occur on incremental runs of the Gradle daemon
         // KT-60394
-        val podInstallCommand = listOfNotNull("env", "pod", "install", if (updateRepo) "--repo-update" else null)
+        val podInstallCommand = listOfNotNull("env", podExecutable, "install", if (updateRepo) "--repo-update" else null)
 
         return runCommandWithFallback(podInstallCommand,
                                       logger,
@@ -96,6 +112,26 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
         } else {
             handleError(retCode, error, process)
         }
+    }
+
+    private fun missingPodsError(): String {
+        return """
+                  |        ERROR: CocoaPods executable not found in your PATH.
+                  |        Please make sure CocoaPods is installed on your system.
+                  |
+                  |        You can install CocoaPods using the following command:
+                  |        ${'$'} sudo gem install cocoapods
+                  |
+                  |        Note: Using 'sudo' might lead to permission issues. If you encounter problems,
+                  |        consider using a Ruby version manager like RVM or rbenv to manage your Ruby environment.
+                  |
+                  |        If CocoaPods is already installed and not in your PATH, you can define the
+                  |        CocoaPods executable path in the local.properties file by executing the following:
+                  |        ${'$'} echo -e "kotlin.cocoapods.bin=${'$'}(which pod)" >> local.properties
+                  |
+                  |        For more information, refer to the documentation: https://jb.gg/f1cvzo
+                  |        
+               """.trimIndent()
     }
 
     abstract fun handleError(retCode: Int, error: String, process: Process): String?
