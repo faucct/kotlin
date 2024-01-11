@@ -21,7 +21,7 @@ OBJC_FORWARD_DECLARE(NSObject);
 
 namespace kotlin::objc_support {
 
-struct object_ptr_retain_t{};
+struct object_ptr_retain_t {};
 inline constexpr object_ptr_retain_t object_ptr_retain{};
 
 namespace internal {
@@ -72,9 +72,7 @@ public:
     CFObjectPtrImpl(object_ptr_retain_t, CFTypeRef object) noexcept : object_(CFRetain(object)) {}
 
     CFObjectPtrImpl(const CFObjectPtrImpl& rhs) noexcept : object_(CFRetain(rhs.object_)) {}
-    CFObjectPtrImpl(CFObjectPtrImpl&& rhs) noexcept : object_(rhs.object_) {
-        rhs.object_ = nullptr;
-    }
+    CFObjectPtrImpl(CFObjectPtrImpl&& rhs) noexcept : object_(rhs.object_) { rhs.object_ = nullptr; }
 
     ~CFObjectPtrImpl();
 
@@ -100,9 +98,7 @@ public:
 
     void reset() noexcept { reset(nullptr); }
     void reset(CFTypeRef object) noexcept;
-    void reset(object_ptr_retain_t, CFTypeRef object) noexcept {
-        reset(CFRetain(object));
-    }
+    void reset(object_ptr_retain_t, CFTypeRef object) noexcept { reset(CFRetain(object)); }
 
     bool operator==(const CFObjectPtrImpl& rhs) const noexcept { return object_ == rhs.object_; }
     bool operator<(const CFObjectPtrImpl& rhs) const noexcept { return std::less<>()(object_, rhs.object_); }

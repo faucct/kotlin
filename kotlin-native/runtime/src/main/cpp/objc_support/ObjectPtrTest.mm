@@ -82,9 +82,7 @@ struct ObjectPtrTestCF {
         return array[0].impl;
     }
 
-    static void release(CFArrayRef ptr) noexcept {
-        CFRelease(ptr);
-    }
+    static void release(CFArrayRef ptr) noexcept { CFRelease(ptr); }
 
     static CFArrayRef retain(CFArrayRef ptr) noexcept {
         CFRetain(ptr);
@@ -100,17 +98,11 @@ struct ObjectPtrTestNS {
         return [[WithDestructorHookObjC alloc] initWithDestructorHook:std::move(hook)];
     }
 
-    static WithDestructorHook* getHook(WithDestructorHookObjC* ptr) noexcept {
-        return ptr.impl;
-    }
+    static WithDestructorHook* getHook(WithDestructorHookObjC* ptr) noexcept { return ptr.impl; }
 
-    static void release(WithDestructorHookObjC* ptr) noexcept {
-        [ptr release];
-    }
+    static void release(WithDestructorHookObjC* ptr) noexcept { [ptr release]; }
 
-    static WithDestructorHookObjC* retain(WithDestructorHookObjC* ptr) noexcept {
-        return [ptr retain];
-    }
+    static WithDestructorHookObjC* retain(WithDestructorHookObjC* ptr) noexcept { return [ptr retain]; }
 };
 
 using ObjectPtrTestTypes = testing::Types<ObjectPtrTestCF, ObjectPtrTestNS>;
