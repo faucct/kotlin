@@ -75,8 +75,7 @@ internal actual inline fun uintToULong(value: Int): ULong = ULong(uintToLong(val
 internal actual inline fun uintToLong(value: Int): Long = value.toLong() and 0xFFFF_FFFF
 
 @PublishedApi
-@InlineOnly
-internal actual fun uintToFloat(value: Int): Float = uintToDouble(value).toFloat()
+internal actual inline fun uintToFloat(value: Int): Float = uintToDouble(value).toFloat()
 
 @PublishedApi
 @InlineOnly

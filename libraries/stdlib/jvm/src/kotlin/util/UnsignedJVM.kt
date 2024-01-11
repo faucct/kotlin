@@ -76,7 +76,7 @@ internal actual inline fun uintToLong(value: Int): Long = value.toLong() and 0xF
 
 @PublishedApi
 @InlineOnly
-internal actual fun uintToFloat(value: Int): Float = uintToDouble(value).toFloat()
+internal actual inline fun uintToFloat(value: Int): Float = uintToDouble(value).toFloat()
 
 @PublishedApi
 @InlineOnly
@@ -122,7 +122,8 @@ internal actual inline fun uintToString(value: Int): String = uintToLong(value).
 @InlineOnly
 internal actual inline fun uintToString(value: Int, base: Int): String = ulongToString(uintToLong(value), base)
 
-internal actual fun ulongToString(value: Long): String = ulongToString(value, 10)
+@InlineOnly
+internal actual inline fun ulongToString(value: Long): String = ulongToString(value, 10)
 
 internal actual fun ulongToString(value: Long, base: Int): String {
     if (value >= 0) return value.toString(base)
