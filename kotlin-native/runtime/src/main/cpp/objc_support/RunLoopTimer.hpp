@@ -60,11 +60,11 @@ public:
     // `interval`, but the time between 2 consecutive tasks may be smaller if the current average is larger).
     // `fireDate` sets the minimum time before the timer can be fired for the first time.
     RunLoopTimer(
-            std::function<void()> callback, std::chrono::duration<double> interval, std::chrono::system_clock::time_point fireDate) noexcept :
+            std::function<void()> callback, std::chrono::duration<double> interval, std::chrono::system_clock::time_point fireDate) noexcept
+        :
         callback_(std::move(callback)),
         timerContext_{0, &callback_, nullptr, nullptr, nullptr},
-        timer_(CFRunLoopTimerCreate(
-                nullptr, convertToCF(fireDate), interval.count(), 0, 0, &perform, &timerContext_)) {}
+        timer_(CFRunLoopTimerCreate(nullptr, convertToCF(fireDate), interval.count(), 0, 0, &perform, &timerContext_)) {}
 
     ~RunLoopTimer() {
         auto* subscription = activeSubscription_.load(std::memory_order_relaxed);
@@ -76,9 +76,7 @@ public:
 
     // `at` overrides the minimum time before the next timer firing. The override is for the next firing
     // only, after it, the initially supplied `interval` will be used again.
-    void setNextFiring(std::chrono::system_clock::time_point at) noexcept {
-        CFRunLoopTimerSetNextFireDate(*timer_, convertToCF(at));
-    }
+    void setNextFiring(std::chrono::system_clock::time_point at) noexcept { CFRunLoopTimerSetNextFireDate(*timer_, convertToCF(at)); }
 
     // `interval` overrides the minimum time before the next timer firing. The override is for the next firing
     // only, after it, the initially supplied `interval` will be used again.
