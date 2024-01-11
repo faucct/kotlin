@@ -155,6 +155,17 @@ fun FirClass.scopeForClass(
     memberRequiredPhase = memberRequiredPhase,
 )
 
+fun FirClassSymbol<*>.scopeForClass(
+    substitutor: ConeSubstitutor,
+    useSiteSession: FirSession,
+    scopeSession: ScopeSession,
+    memberOwnerLookupTag: ConeClassLikeLookupTag,
+    memberRequiredPhase: FirResolvePhase?,
+): FirTypeScope = fir.scopeForClass(
+    substitutor, useSiteSession, scopeSession,
+    memberOwnerLookupTag, memberRequiredPhase,
+)
+
 fun ConeKotlinType.scopeForSupertype(
     useSiteSession: FirSession,
     scopeSession: ScopeSession,

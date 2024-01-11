@@ -27,6 +27,9 @@ fun FirClass.constructors(session: FirSession): List<FirConstructorSymbol> {
     return result
 }
 
+// There is `declaredMemberScope(symbol)`, but it does `symbol.fir` inside anyway.
+fun FirClassSymbol<*>.constructors(session: FirSession): List<FirConstructorSymbol> = fir.constructors(session)
+
 fun FirClass.primaryConstructorIfAny(session: FirSession): FirConstructorSymbol? {
     return constructors(session).find(FirConstructorSymbol::isPrimary)
 }
