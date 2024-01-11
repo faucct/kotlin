@@ -74,8 +74,7 @@ internal fun IrPluginContext.buildSetField(
         receiver,
         value,
         irBuiltIns.unitType,
-        origin = null,
-        superQualifierSymbol
+        superQualifierSymbol = superQualifierSymbol
     )
 
 internal fun buildGetField(
