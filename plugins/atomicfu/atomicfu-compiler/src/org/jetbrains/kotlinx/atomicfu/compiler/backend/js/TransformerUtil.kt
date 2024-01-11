@@ -89,8 +89,7 @@ internal fun buildGetField(
         symbol,
         type ?: symbol.owner.type,
         receiver,
-        origin = null,
-        superQualifierSymbol
+        superQualifierSymbol = superQualifierSymbol
     )
 
 internal fun buildSimpleType(
