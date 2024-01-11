@@ -9,17 +9,23 @@ import org.jetbrains.kotlin.analysis.project.structure.KtModule
 import org.jetbrains.kotlin.utils.topologicalSort
 
 /**
- * Changes positions of modules that belong to the same KMP project: (A dependsOn B) -> (A goes before B in the list).
- * Allows giving 'actual' declarations higher priority.
- * Keeps positions of other non-KMP modules unchanged.
+ * Sorts modules that belong to the same KMP project: (A dependsOn B) -> (A goes before B).
+ * It's necessary to give 'actual' declarations from platform modules higher priority.
+ * Preserves positions of other non-KMP modules unchanged to avoid potential side effects.
+ * In case of an unexpected error returns the modules unchanged.
  */
 class KmpModuleSorter private constructor(private val modules: List<KtModule>) {
     private val groupsByModules = mutableMapOf<KtModule, KmpGroup>()
     private val originalPositions = mutableMapOf<KtModule, Int>()
 
+    // Signals corrupted state. When set, original positions will be used for recovery
+    var hasErrors = false
+        private set
+
     private fun sort(): List<KtModule> {
         groupModules()
-        return sortModules()
+        val sorted = sortModules()
+        return if (hasErrors) modules else sorted
     }
 
     private fun groupModules() {
@@ -55,6 +61,12 @@ class KmpModuleSorter private constructor(private val modules: List<KtModule>) {
         return KmpGroup()
     }
 
+    private fun getOriginalPositionOrSetCorrupted(module: KtModule): Int {
+        val originalPosition = originalPositions[module]
+        if (originalPosition == null) hasErrors = true
+        return originalPosition ?: 0
+    }
+
     /**
      * Modules, corresponding to source sets of the same KMP project.
      */
@@ -62,7 +74,7 @@ class KmpModuleSorter private constructor(private val modules: List<KtModule>) {
         private val modules = mutableListOf<KtModule>()
         private val sortedModules by lazy {
             topologicalSort(modules) { directDependsOnDependencies }.also {
-                check(it.size == modules.size) { "The number of sorted modules doesn't match the number of registered modules" }
+                if (it.size != modules.size) hasErrors = true
             }
         }
 
@@ -74,11 +86,12 @@ class KmpModuleSorter private constructor(private val modules: List<KtModule>) {
 
         fun getUpdatedIndexOf(module: KtModule): Int {
             check(module in modules)
-            if (modules.size == 1) return originalPositions[module]
-                ?: error("Can't find position for module: $module")
+            if (modules.size == 1) return getOriginalPositionOrSetCorrupted(module)
 
-            return oldReplacedModulesBySortedModules[module]?.let { originalPositions[it] }
-                ?: error("Can't find position for module: $module")
+            val newPosition = oldReplacedModulesBySortedModules[module]?.let { getOriginalPositionOrSetCorrupted(it) }
+            if (newPosition == null) hasErrors = true
+
+            return newPosition ?: 0
         }
 
         // N.B.: evaluating debug text before all modules are registered will corrupt the group
@@ -92,15 +105,7 @@ class KmpModuleSorter private constructor(private val modules: List<KtModule>) {
     companion object {
         fun order(modules: List<KtModule>): List<KtModule> {
             if (modules.size < 2) return modules
-
-            val sorter = KmpModuleSorter(modules)
-            val sortedModules = sorter.sort()
-
-            check(sortedModules.size == modules.size) {
-                "The resulting number of modules (${sortedModules.size}) doesn't match the number of input modules ($modules.size)"
-            }
-
-            return sortedModules
+            return KmpModuleSorter(modules).sort()
         }
     }
 }
