@@ -11,7 +11,9 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFRunLoop.h>
 
+#include "RawPtr.hpp"
 #include "Utils.hpp"
+#include "objc_support/ObjectPtr.hpp"
 
 namespace kotlin::objc_support {
 
@@ -31,21 +33,25 @@ public:
     //
     // Must be destroyed on the same thread that called `attachToCurrentRunLoop`.
     class [[nodiscard]] Subscription : private Pinned {
+        // TODO: Consider making it movable.
     public:
         ~Subscription() {
-            RuntimeAssert(runLoop_ == CFRunLoopGetCurrent(), "Must be destroyed on the same thread as created");
-            CFRunLoopRemoveTimer(runLoop_, timer_, mode_);
+            RuntimeAssert(*runLoop_ == CFRunLoopGetCurrent(), "Must be destroyed on the same thread as created");
+            CFRunLoopRemoveTimer(*runLoop_, *owner_->timer_, mode_);
+            owner_->unregisterSubscription(*this);
         }
 
     private:
         friend class RunLoopTimer;
 
-        Subscription(CFRunLoopTimerRef timer, CFRunLoopMode mode) noexcept : timer_(timer), runLoop_(CFRunLoopGetCurrent()), mode_(mode) {
-            CFRunLoopAddTimer(runLoop_, timer, mode);
+        Subscription(RunLoopTimer& owner, CFRunLoopMode mode) noexcept :
+            owner_(&owner), runLoop_(object_ptr_retain, CFRunLoopGetCurrent()), mode_(mode) {
+            owner_->registerSubscription(*this);
+            CFRunLoopAddTimer(*runLoop_, *owner_->timer_, mode);
         }
 
-        CFRunLoopTimerRef timer_;
-        CFRunLoopRef runLoop_;
+        raw_ptr<RunLoopTimer> owner_;
+        object_ptr<CFRunLoopRef> runLoop_;
         CFRunLoopMode mode_;
     };
 
@@ -60,26 +66,46 @@ public:
         timer_(CFRunLoopTimerCreate(
                 nullptr, CFAbsoluteTimeGetCurrent() + initialFiring.count(), interval.count(), 0, 0, &perform, &timerContext_)) {}
 
-    ~RunLoopTimer() { CFRelease(timer_); }
+    ~RunLoopTimer() {
+        auto* subscription = activeSubscription_.load(std::memory_order_relaxed);
+        RuntimeAssert(subscription == nullptr, "Expected no active subscription, but was %p", subscription);
+    }
 
     // Raw pointer to `CFRunLoopTimer`.
-    CFRunLoopTimerRef handle() noexcept { return timer_; }
+    auto handle() noexcept { return timer_; }
 
     // `interval` overrides the minimum time before the next timer firing. The override is for the next firing
     // only, after it, the initially supplied `interval` will be used again.
     void setNextFiring(std::chrono::duration<double> interval) noexcept {
-        CFRunLoopTimerSetNextFireDate(timer_, CFAbsoluteTimeGetCurrent() + interval.count());
+        CFRunLoopTimerSetNextFireDate(*timer_, CFAbsoluteTimeGetCurrent() + interval.count());
     }
 
     // Attach this `RunLoopTimer` to the current thread's run loop.
-    Subscription attachToCurrentRunLoop(CFRunLoopMode mode = kCFRunLoopDefaultMode) noexcept { return Subscription(timer_, mode); }
+    [[nodiscard]] std::unique_ptr<Subscription> attachToCurrentRunLoop(CFRunLoopMode mode = kCFRunLoopDefaultMode) noexcept {
+        return std::unique_ptr<Subscription>(new Subscription(*this, mode));
+    }
 
 private:
     static void perform(CFRunLoopTimerRef, void* callback) noexcept { static_cast<decltype(callback_)*>(callback)->operator()(); }
 
+    void registerSubscription(Subscription& subscription) noexcept {
+        Subscription* actual = nullptr;
+        activeSubscription_.compare_exchange_strong(actual, &subscription, std::memory_order_relaxed);
+        RuntimeAssert(
+                actual == nullptr, "Cannot have more than one active subscription. Trying to regiser %p but %p is already active",
+                &subscription, actual);
+    }
+
+    void unregisterSubscription(Subscription& subscription) noexcept {
+        Subscription* actual = &subscription;
+        activeSubscription_.compare_exchange_strong(actual, nullptr, std::memory_order_relaxed);
+        RuntimeAssert(actual == &subscription, "Expected %p to be active subscription. But was %p", &subscription, actual);
+    }
+
     std::function<void()> callback_; // TODO: std::function_ref?
     CFRunLoopTimerContext timerContext_;
-    CFRunLoopTimerRef timer_;
+    object_ptr<CFRunLoopTimerRef> timer_;
+    std::atomic<Subscription*> activeSubscription_ = nullptr;
 };
 
 } // namespace kotlin::objc_support
