@@ -32,11 +32,6 @@ open class KaptIncrementalIT : KGPBaseTest() {
         kaptOptions = BuildOptions.KaptOptions(incrementalKapt = true)
     ).copyEnsuringK1()
 
-    // KT-63102 Incremental compilation doesn't work in 2.0
-    protected val isIncrementalStubGenerationSupported: Boolean by lazy {
-        defaultBuildOptions.languageVersion?.startsWith("1") ?: (KotlinVersion.DEFAULT < KotlinVersion.KOTLIN_2_0)
-    }
-
     protected open fun KGPBaseTest.kaptProject(
         gradleVersion: GradleVersion,
         buildOptions: BuildOptions = defaultBuildOptions,
@@ -413,3 +408,7 @@ class K2KaptIncrementalIT: KaptIncrementalIT() {
 class KaptIncrementalWithoutPreciseBackupIT : KaptIncrementalIT() {
     override val defaultBuildOptions = super.defaultBuildOptions.copy(usePreciseOutputsBackup = false, keepIncrementalCompilationCachesInMemory = false)
 }
+
+// KT-63102 Incremental compilation doesn't work in 2.0
+val TestProject.isIncrementalStubGenerationSupported: Boolean
+    get() = buildOptions.languageVersion?.startsWith("1") ?: (KotlinVersion.DEFAULT < KotlinVersion.KOTLIN_2_0)
