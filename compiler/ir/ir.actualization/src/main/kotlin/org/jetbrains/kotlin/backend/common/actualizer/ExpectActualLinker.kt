@@ -77,7 +77,7 @@ internal open class ActualizerVisitor(private val symbolRemapper: SymbolRemapper
     DeepCopyIrTreeWithSymbols(symbolRemapper, typeRemapper, SymbolRenamer.DEFAULT) {
 
     // We shouldn't touch attributes, because Fir2Ir wouldn't set them to anything meaningful anyway.
-    // So it would be better to have them as is, i.e. referring this, not some random node removed from the tree
+    // So it would be better to have them as is, i.e. referring to `this`, not some random node removed from the tree
     override fun <D : IrAttributeContainer> D.processAttributes(other: IrAttributeContainer?): D = this
 
     override fun visitModuleFragment(declaration: IrModuleFragment) =
