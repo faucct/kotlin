@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.fir.types.coneTypeSafe
 import org.jetbrains.kotlin.fir.types.isNullableAny
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 val FirTypeAlias.expandedConeType: ConeClassLikeType? get() = expandedTypeRef.coneTypeSafe()
@@ -50,6 +51,10 @@ val FirDeclaration.isNonLocal
 
 val FirCallableDeclaration.isExtension get() = receiverParameter != null
 
+val FirBasedSymbol<*>.isMemberDeclaration: Boolean
+    // Accessing `fir` is ok, because we don't really use it
+    get() = fir is FirMemberDeclaration
+
 val FirBasedSymbol<*>.memberDeclarationNameOrNull: Name?
     // Accessing `fir` is ok, because `nameOrSpecialName` only accesses names
     get() = (fir as? FirMemberDeclaration)?.nameOrSpecialName
@@ -65,6 +70,10 @@ fun FirBasedSymbol<*>.asMemberDeclarationResolvedTo(phase: FirResolvePhase): Fir
         lazyResolveToPhase(phase)
     }
 }
+
+val FirCallableSymbol<*>.containerSource: DeserializedContainerSource?
+    // This is ok, because containerSource should be set during fir creation
+    get() = fir.containerSource
 
 val FirNamedFunctionSymbol.isMethodOfAny: Boolean
     get() {
