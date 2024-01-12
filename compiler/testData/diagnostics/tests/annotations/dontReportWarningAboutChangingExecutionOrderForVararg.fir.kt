@@ -1,7 +1,7 @@
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Anno(vararg val x: String, val y: String)
 
-@Anno(x = [["a", "b"], ["a", "b"]], y = "a")
+@Anno(x = <!ARGUMENT_TYPE_MISMATCH!>[["a", "b"], ["a", "b"]]<!>, y = "a")
 fun foo1() {}
 
 @Anno(x = ["a", "b"], y = "a")
