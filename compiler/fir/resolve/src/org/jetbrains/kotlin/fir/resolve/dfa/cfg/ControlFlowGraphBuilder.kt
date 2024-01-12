@@ -1279,8 +1279,8 @@ class ControlFlowGraphBuilder {
         return node
     }
 
-    fun exitLiteralExpression(constExpression: FirLiteralExpression<*>): LiteralExpressionNode {
-        return createLiteralExpressionNode(constExpression).also { addNewSimpleNode(it) }
+    fun exitLiteralExpression(literalExpression: FirLiteralExpression<*>): LiteralExpressionNode {
+        return createLiteralExpressionNode(literalExpression).also { addNewSimpleNode(it) }
     }
 
     fun exitVariableDeclaration(variable: FirProperty): VariableDeclarationNode {
