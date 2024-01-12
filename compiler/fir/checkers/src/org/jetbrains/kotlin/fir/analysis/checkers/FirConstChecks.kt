@@ -71,7 +71,7 @@ internal fun checkConstantArguments(
             }
             return null
         }
-        expression is FirConstExpression<*>
+        expression is FirLiteralExpression<*>
                 || expressionSymbol is FirEnumEntrySymbol
                 || expressionSymbol?.isConst == true
                 || expressionSymbol is FirConstructorSymbol && classKindOfParent == ClassKind.ANNOTATION_CLASS -> {
@@ -201,7 +201,7 @@ internal fun checkConstantArguments(
                 expressionType.classId == StandardClassIds.KClass -> return ConstantArgumentKind.NOT_KCLASS_LITERAL
             }
             return when (property.initializer) {
-                is FirConstExpression<*> -> when {
+                is FirLiteralExpression<*> -> when {
                     property.isVal -> ConstantArgumentKind.NOT_CONST_VAL_IN_CONST_EXPRESSION
                     else -> ConstantArgumentKind.NOT_CONST
                 }
@@ -227,7 +227,7 @@ private fun FirExpression.isForbiddenComplexConstant(session: FirSession): Boole
 private fun FirExpression.isComplexBooleanConstant(session: FirSession): Boolean {
     return when {
         !resolvedType.fullyExpandedType(session).isBoolean -> false
-        this is FirConstExpression<*> -> false
+        this is FirLiteralExpression<*> -> false
         usesVariableAsConstant -> false
         else -> true
     }

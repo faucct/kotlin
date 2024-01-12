@@ -56,7 +56,7 @@ fun main(args: Array<String>) {
         alias<FirStringConcatenationCall>("StringConcatenationCallChecker")
         alias<FirTypeOperatorCall>("TypeOperatorCallChecker")
         alias<FirResolvedQualifier>("ResolvedQualifierChecker")
-        alias<FirConstExpression<*>>("ConstExpressionChecker")
+        alias<FirLiteralExpression<*>>("ConstExpressionChecker")
         alias<FirCallableReferenceAccess>("CallableReferenceAccessChecker")
         alias<FirThisReceiverExpression>("ThisReceiverExpressionChecker")
         alias<FirWhileLoop>("WhileLoopChecker")
