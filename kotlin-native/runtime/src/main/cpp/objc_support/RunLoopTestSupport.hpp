@@ -7,7 +7,8 @@
 
 #if KONAN_HAS_FOUNDATION_FRAMEWORK
 
-#include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <CoreFoundation/CFRunLoop.h>
 
 #include "ScopedThread.hpp"
@@ -22,23 +23,39 @@ public:
     explicit RunLoopInScopedThread(Init init) noexcept :
         thread_([&]() noexcept {
             [[maybe_unused]] auto state = init();
-            runLoop_.reset(object_ptr_retain, CFRunLoopGetCurrent());
-            RuntimeAssert(*runLoop_ != nullptr, "Current run loop cannot be null");
-            changeState(State::kInitial, State::kRunning);
-            while (state_.load(std::memory_order_relaxed) == State::kRunning) {
-                CFRunLoopRun();
+            {
+                std::unique_lock guard{stateMutex_};
+                runLoop_.reset(object_ptr_retain, CFRunLoopGetCurrent());
+                RuntimeAssert(*runLoop_ != nullptr, "Current run loop cannot be null");
+                RuntimeAssert(state_ == State::kInitial, "Expected state to be %d but was %d", State::kInitial, state_);
+                state_ = State::kRunning;
             }
-            changeState(State::kWillStop, State::kStopped);
-            RuntimeAssert(*runLoop_ == nullptr, "Stored run loop must have been nulled");
+            initializedCV_.notify_one();
+            while (true) {
+                CFRunLoopRun();
+                std::unique_lock guard{stateMutex_};
+                if (state_ != State::kRunning) {
+                    RuntimeAssert(state_ == State::kWillStop, "Expected state to be %d but was %d", State::kWillStop, state_);
+                    RuntimeAssert(*runLoop_ == nullptr, "Stored run loop must have been nulled");
+                    state_ = State::kStopped;
+                    break;
+                }
+            }
         }) {
-        while (state_.load(std::memory_order_relaxed) < State::kRunning) {
-        }
-        std::atomic_thread_fence(std::memory_order_acquire);
+        std::unique_lock guard{stateMutex_};
+        initializedCV_.wait(guard, [this]() noexcept {
+            return state_ >= State::kRunning;
+        });
     }
 
     ~RunLoopInScopedThread() {
-        object_ptr<CFRunLoopRef> runLoop = std::move(runLoop_);
-        changeState(State::kRunning, State::kWillStop);
+        object_ptr<CFRunLoopRef> runLoop;
+        {
+            std::unique_lock guard{stateMutex_};
+            runLoop = std::move(runLoop_);
+            RuntimeAssert(state_ == State::kRunning, "Expected state to be %d but was %d", State::kRunning, state_);
+            state_ = State::kWillStop;
+        }
         CFRunLoopStop(*runLoop);
     }
 
@@ -61,14 +78,10 @@ private:
         kStopped,
     };
 
-    void changeState(State expected, State desired) noexcept {
-        auto actual = expected;
-        state_.compare_exchange_strong(actual, desired, std::memory_order_acq_rel);
-        RuntimeAssert(actual == expected, "Expected state to be %d but was %d", expected, actual);
-    }
-
+    std::mutex stateMutex_;
+    std::condition_variable initializedCV_;
     object_ptr<CFRunLoopRef> runLoop_;
-    std::atomic<State> state_ = State::kInitial;
+    State state_ = State::kInitial;
     ScopedThread thread_;
 };
 
