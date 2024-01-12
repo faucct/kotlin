@@ -405,10 +405,6 @@ internal fun wasm_i32_wrap_i64(a: Long): Int =
 internal fun wasm_i64_extend_i32_s(a: Int): Long =
     implementedAsIntrinsic
 
-@WasmOp(WasmOp.I64_EXTEND_I32_U)
-internal fun wasm_i64_extend_i32_u(a: Int): Long =
-    implementedAsIntrinsic
-
 @WasmOp(WasmOp.F32_CONVERT_I32_S)
 internal fun wasm_f32_convert_i32_s(a: Int): Float =
     implementedAsIntrinsic
