@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.DecoratedKotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.DefaultKotlinCompilationAssociator
 import org.jetbrains.kotlin.gradle.plugin.mpp.external.ExternalKotlinCompilationDescriptor.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.internal
-import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.SourceSetTreeClassifier
+import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.*
 import kotlin.properties.Delegates
 
 /**
@@ -79,6 +79,7 @@ fun <T : DecoratedExternalKotlinCompilation> ExternalKotlinCompilationDescriptor
     configure: ExternalKotlinCompilationDescriptorBuilder<T>.() -> Unit,
 ): ExternalKotlinCompilationDescriptor<T> {
     return ExternalKotlinCompilationDescriptorBuilder<T>().also(configure).run {
+        @Suppress("DEPRECATION")
         ExternalKotlinCompilationDescriptorImpl(
             compilationName = compilationName,
             compileTaskName = compileTaskName,
