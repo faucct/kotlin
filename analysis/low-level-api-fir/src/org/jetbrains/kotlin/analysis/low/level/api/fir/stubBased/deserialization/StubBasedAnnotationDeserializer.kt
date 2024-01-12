@@ -199,7 +199,7 @@ class StubBasedAnnotationDeserializer(
         typeRef: FirResolvedTypeRef,
         sourceElement: PsiElement
     ): FirLiteralExpression<T> {
-        return buildConstExpression(
+        return buildLiteralExpression(
             KtRealPsiSourceElement(sourceElement),
             kind,
             value,

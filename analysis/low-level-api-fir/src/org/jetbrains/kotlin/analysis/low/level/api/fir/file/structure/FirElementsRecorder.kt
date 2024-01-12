@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.builder.toFirOperationOrNull
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
 import org.jetbrains.kotlin.fir.expressions.*
-import org.jetbrains.kotlin.fir.expressions.builder.buildConstExpression
+import org.jetbrains.kotlin.fir.expressions.builder.buildLiteralExpression
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.types.*
@@ -216,7 +216,7 @@ internal open class FirElementsRecorder : FirVisitor<Unit, MutableMap<KtElement,
             else -> null
         } ?: return null
         @Suppress("UNCHECKED_CAST")
-        return buildConstExpression(
+        return buildLiteralExpression(
             original.ktConstantExpression?.toKtPsiSourceElement(),
             this,
             convertedValue as T,

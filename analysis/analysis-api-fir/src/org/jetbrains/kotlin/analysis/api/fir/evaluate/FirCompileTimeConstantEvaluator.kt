@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.fir.declarations.utils.isConst
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.expressions.*
-import org.jetbrains.kotlin.fir.expressions.builder.buildConstExpression
+import org.jetbrains.kotlin.fir.expressions.builder.buildLiteralExpression
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
@@ -369,7 +369,7 @@ internal object FirCompileTimeConstantEvaluator {
 
     private fun <T> ConstantValueKind<T>.toConstExpression(source: KtSourceElement?, value: Any?): FirLiteralExpression<T> =
         @Suppress("UNCHECKED_CAST")
-        buildConstExpression(source, this, value as T, setType = false)
+        buildLiteralExpression(source, this, value as T, setType = false)
 
     private fun FirFunctionCall.getOriginalFunction(): FirCallableDeclaration? {
         val symbol: FirBasedSymbol<*>? = when (val reference = calleeReference) {

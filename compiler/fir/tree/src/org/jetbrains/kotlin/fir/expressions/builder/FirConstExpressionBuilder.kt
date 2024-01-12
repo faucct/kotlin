@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.ConstantValueKind
 
 @OptIn(UnresolvedExpressionTypeAccess::class)
-fun <T> buildConstExpression(
+fun <T> buildLiteralExpression(
     source: KtSourceElement?,
     kind: ConstantValueKind<T>,
     value: T,
