@@ -127,6 +127,9 @@ inline fun <reified D : FirCallableDeclaration> D.unwrapFakeOverridesOrDelegated
     } while (true)
 }
 
+inline fun <reified D : FirCallableSymbol<*>> D.unwrapFakeOverridesOrDelegated(): FirCallableSymbol<*> =
+    fir.unwrapFakeOverridesOrDelegated().symbol
+
 inline fun <reified D : FirCallableDeclaration> D.unwrapSubstitutionOverrides(): D {
     var current = this
 
