@@ -53,10 +53,10 @@ internal object FirCompileTimeConstantEvaluator {
                         if (referredVariable.callableId.isStringLength) {
                             evaluate(fir.explicitReceiver, mode)?.evaluateStringLength()
                         } else {
-                            referredVariable.toConstExpression(mode)
+                            referredVariable.toLiteralExpression(mode)
                         }
                     }
-                    is FirFieldSymbol -> referredVariable.toConstExpression(mode)
+                    is FirFieldSymbol -> referredVariable.toLiteralExpression(mode)
                     else -> null
                 }
             }
@@ -70,7 +70,7 @@ internal object FirCompileTimeConstantEvaluator {
                 evaluateStringConcatenationCall(fir, mode)
             }
             is FirNamedReference -> {
-                fir.toResolvedPropertySymbol()?.toConstExpression(mode)
+                fir.toResolvedPropertySymbol()?.toLiteralExpression(mode)
             }
             else -> null
         }
@@ -78,7 +78,7 @@ internal object FirCompileTimeConstantEvaluator {
     private val CallableId.isStringLength: Boolean
         get() = classId == StandardClassIds.String && callableName.identifierOrNullIfSpecial == "length"
 
-    private fun FirPropertySymbol.toConstExpression(
+    private fun FirPropertySymbol.toLiteralExpression(
         mode: KtConstantEvaluationMode,
     ): FirLiteralExpression<*>? {
         return when {
@@ -92,7 +92,7 @@ internal object FirCompileTimeConstantEvaluator {
         }
     }
 
-    private fun FirFieldSymbol.toConstExpression(
+    private fun FirFieldSymbol.toLiteralExpression(
         mode: KtConstantEvaluationMode,
     ): FirLiteralExpression<*>? {
         return when {
@@ -149,7 +149,7 @@ internal object FirCompileTimeConstantEvaluator {
     }
 
     private fun FirLiteralExpression<*>.adaptToConstKind(): FirLiteralExpression<*> {
-        return kind.toConstExpression(
+        return kind.toLiteralExpression(
             source,
             kind.convertToNumber(value as? Number) ?: value
         )
@@ -166,7 +166,7 @@ internal object FirCompileTimeConstantEvaluator {
             }
         }
 
-        return ConstantValueKind.String.toConstExpression(stringConcatenationCall.source, concatenated)
+        return ConstantValueKind.String.toLiteralExpression(stringConcatenationCall.source, concatenated)
     }
 
     private fun evaluateFunctionCall(
@@ -200,7 +200,7 @@ internal object FirCompileTimeConstantEvaluator {
         val expression =
             if (expectedKind != null && expectedKind != kind && value is Number) {
                 val typeAdjustedValue = expectedKind.convertToNumber(value as Number)!!
-                expectedKind.toConstExpression(source, typeAdjustedValue)
+                expectedKind.toLiteralExpression(source, typeAdjustedValue)
             } else {
                 this
             }
@@ -235,7 +235,7 @@ internal object FirCompileTimeConstantEvaluator {
                 kind.toCompileTimeType(),
                 opr
             )?.let {
-                return it.toConstantValueKind().toConstExpression(source, it)
+                return it.toConstantValueKind().toLiteralExpression(source, it)
             }
         }
         return kind.convertToNumber(value as? Number)?.let { opr ->
@@ -244,14 +244,14 @@ internal object FirCompileTimeConstantEvaluator {
                 kind.toCompileTimeType(),
                 opr
             )?.let {
-                it.toConstantValueKind().toConstExpression(source, it)
+                it.toConstantValueKind().toLiteralExpression(source, it)
             }
         }
     }
 
     private fun FirLiteralExpression<*>.evaluateStringLength(): FirLiteralExpression<*>? {
         return (value as? String)?.length?.let {
-            it.toConstantValueKind().toConstExpression(source, it)
+            it.toConstantValueKind().toLiteralExpression(source, it)
         }
     }
 
@@ -276,7 +276,7 @@ internal object FirCompileTimeConstantEvaluator {
                     rightType,
                     opr2
                 )?.let {
-                    return it.toConstantValueKind().toConstExpression(source, it)
+                    return it.toConstantValueKind().toLiteralExpression(source, it)
                 }
             }
         }
@@ -289,7 +289,7 @@ internal object FirCompileTimeConstantEvaluator {
                     other.kind.toCompileTimeType(),
                     opr2
                 )?.let {
-                    it.toConstantValueKind().toConstExpression(source, it)
+                    it.toConstantValueKind().toLiteralExpression(source, it)
                 }
             }
         }
@@ -367,7 +367,7 @@ internal object FirCompileTimeConstantEvaluator {
         }
     }
 
-    private fun <T> ConstantValueKind<T>.toConstExpression(source: KtSourceElement?, value: Any?): FirLiteralExpression<T> =
+    private fun <T> ConstantValueKind<T>.toLiteralExpression(source: KtSourceElement?, value: Any?): FirLiteralExpression<T> =
         @Suppress("UNCHECKED_CAST")
         buildLiteralExpression(source, this, value as T, setType = false)
 
