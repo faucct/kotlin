@@ -27,6 +27,9 @@ private class AAFunction(
     override val fqName: List<String>
         get() = originalFunction.fqName?.pathSegments()?.toListString() ?: emptyList()
 
+    override val isStatic: Boolean
+        get() = originalFunction.isTopLevel
+
     override val parameters: List<SirKotlinOrigin.Parameter>
         get() = analyze(originalFunction) {
             val function = originalFunction.getFunctionLikeSymbol()

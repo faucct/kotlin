@@ -12,6 +12,7 @@ sealed interface SirKotlinOrigin : SirOrigin.Foreign {
         get() = fqName
 
     interface Function : SirKotlinOrigin {
+        val isStatic: Boolean
         val parameters: List<Parameter>
         val returnType: Type
     }
