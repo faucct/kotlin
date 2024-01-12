@@ -1204,7 +1204,7 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
             else -> kind.expectedConeType(session)
         }
 
-        dataFlowAnalyzer.exitConstExpression(literalExpression as FirLiteralExpression<*>)
+        dataFlowAnalyzer.exitLiteralExpression(literalExpression as FirLiteralExpression<*>)
         literalExpression.resultType = type
 
         return when (val resolvedType = literalExpression.resolvedType) {

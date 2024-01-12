@@ -1021,7 +1021,7 @@ abstract class FirDataFlowAnalyzer(
         }
     }
 
-    fun exitConstExpression(constExpression: FirLiteralExpression<*>) {
+    fun exitLiteralExpression(constExpression: FirLiteralExpression<*>) {
         if (constExpression.isResolved) return
         graphBuilder.exitConstExpression(constExpression).mergeIncomingFlow()
     }
