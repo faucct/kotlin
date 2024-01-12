@@ -94,7 +94,8 @@ internal fun AbstractNativeSimpleTest.compileWithClang(
         exitCode = if (exitCode == 0) ExitCode.OK else ExitCode.COMPILATION_ERROR,
         toolOutput = clangOutput.decodeToString() + clangErrorOutput.decodeToString(),
         toolOutputHasErrors = clangErrorOutput.isNotEmpty(),
-        duration = duration
+        duration = duration,
+        input = null,
     )
     return if (exitCode != 0) {
         TestCompilationResult.CompilationToolFailure(loggedData)
