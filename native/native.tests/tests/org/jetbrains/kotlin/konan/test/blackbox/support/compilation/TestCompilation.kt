@@ -298,7 +298,7 @@ internal class BinaryLibraryCompilation(
     dependencies = CategorizedDependencies(dependencies),
     expectedArtifact = expectedArtifact
 ) {
-    override val binaryOptions get() = BinaryOptions.RuntimeAssertionsMode.defaultForTesting
+    override val binaryOptions get() = BinaryOptions.RuntimeAssertionsMode.defaultForTesting(optimizationMode, freeCompilerArgs.assertionsMode)
 
     override fun applySpecificArgs(argsBuilder: ArgsBuilder) = with(argsBuilder) {
         val libraryKind = when (expectedArtifact.kind) {
