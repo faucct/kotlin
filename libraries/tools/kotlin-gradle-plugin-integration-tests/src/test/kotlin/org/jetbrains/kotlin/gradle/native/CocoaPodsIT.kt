@@ -970,8 +970,8 @@ class CocoaPodsIT : KGPBaseTest() {
                     append("\n")
                     appendText(
                         """
-                        kotlin.apple.cocoapods.bin=${podPath}
-                    """.trimIndent()
+                            kotlin.apple.cocoapods.bin=${podPath}
+                        """.trimIndent()
                     )
                 }
 
