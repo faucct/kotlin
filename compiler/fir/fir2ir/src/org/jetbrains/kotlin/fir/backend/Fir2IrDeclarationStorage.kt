@@ -627,13 +627,9 @@ class Fir2IrDeclarationStorage(
         val getterSymbol = IrFunctionFakeOverrideSymbol(originalSymbols.getterSymbol, containingClassSymbol, getterSignature)
 
         val setterSymbol = runIf(property.isVar) {
-            val setterIsVisible = when (val setter = property.setter) {
-                null -> true
-                else -> when (val containingClass = fakeOverrideOwnerLookupTag?.toFirRegularClass(session)) {
-                    null -> true
-                    else -> setter.isVisibleInClass(containingClass)
-                }
-            }
+            val setterIsVisible = property.setter?.let { setter ->
+                fakeOverrideOwnerLookupTag?.toFirRegularClass(session)?.let { containingClass -> setter.isVisibleInClass(containingClass) }
+            } ?: true
             runIf(setterIsVisible) {
                 val setterSignature = runIf(signature != null) {
                     signatureComposer.composeAccessorSignature(property, isSetter = true, fakeOverrideOwnerLookupTag)

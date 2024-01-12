@@ -68,12 +68,8 @@ class SpecialFakeOverrideSymbolsResolver(private val expectActualMap: Map<IrSymb
         val actualizedOriginalSymbol = originalSymbol.actualize()
         processClass(actualizedClassSymbol.owner)
         when (val result = cachedFakeOverrides[actualizedClassSymbol to actualizedOriginalSymbol]) {
-            null -> {
-                error("No override for $actualizedOriginalSymbol in $actualizedClassSymbol")
-            }
-            !is S -> {
-                error("Override for $actualizedOriginalSymbol in $actualizedClassSymbol has incompatible type: $result")
-            }
+            null -> error("No override for $actualizedOriginalSymbol in $actualizedClassSymbol")
+            !is S -> error("Override for $actualizedOriginalSymbol in $actualizedClassSymbol has incompatible type: $result")
             else -> return result
         }
     }
