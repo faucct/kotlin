@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirFileAnnotationsContainer
@@ -17,6 +18,7 @@ import org.jetbrains.kotlin.fir.declarations.FirConstructor
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirField
 import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirJumpingResolveSession
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
@@ -31,6 +33,7 @@ import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.resolve.DataClassResolver
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 
 internal abstract class LLFirTargetResolver(
     protected val resolveTarget: LLFirResolveTarget,
@@ -166,24 +169,42 @@ internal abstract class LLFirTargetResolver(
         resolveDependencies(target)
 
         if (doResolveWithoutLock(target)) return
-        performCustomResolveUnderLock(target) {
-            doLazyResolveUnderLock(target)
+
+        if (isJumpingPhase) {
+            lockProvider.withJumpingLock(
+                target,
+                resolverPhase,
+                jumpingResolveSession,
+                actionUnderLock = {
+                    doLazyResolveUnderLock(target)
+                    LLFirLazyPhaseResolverByPhase.getByPhase(resolverPhase).updatePhaseForDeclarationInternals(target)
+                },
+                cycleAction = {
+                    handleResolutionCycle(target)
+                }
+            )
+        } else {
+            performCustomResolveUnderNonJumpingWriteLock(target) {
+                doLazyResolveUnderLock(target)
+            }
         }
     }
 
-    protected inline fun performCustomResolveUnderLock(target: FirElementWithResolveState, crossinline action: () -> Unit) {
+    open val jumpingResolveSession: FirJumpingResolveSession get() = throw UnsupportedOperationException("${this::class.simpleName} doesn't support jumping lock")
+
+    protected open fun handleResolutionCycle(target: FirElementWithResolveState) {
+        errorWithFirSpecificEntries("Resolution cycle is detected", fir = target)
+    }
+
+    protected inline fun performCustomResolveUnderNonJumpingWriteLock(target: FirElementWithResolveState, crossinline action: () -> Unit) {
         checkThatResolvedAtLeastToPreviousPhase(target)
-        withPossiblyJumpingLock(target) {
+        requireWithAttachment(!isJumpingPhase, { "This function cannot be called for jumping phase" }) {
+            withFirEntry("target", target)
+        }
+
+        lockProvider.withWriteLock(target, resolverPhase) {
             action()
             LLFirLazyPhaseResolverByPhase.getByPhase(resolverPhase).updatePhaseForDeclarationInternals(target)
-        }
-    }
-
-    private inline fun withPossiblyJumpingLock(target: FirElementWithResolveState, action: () -> Unit) {
-        if (isJumpingPhase) {
-            lockProvider.withJumpingLock(target, resolverPhase, action)
-        } else {
-            lockProvider.withWriteLock(target, resolverPhase, action)
         }
     }
 

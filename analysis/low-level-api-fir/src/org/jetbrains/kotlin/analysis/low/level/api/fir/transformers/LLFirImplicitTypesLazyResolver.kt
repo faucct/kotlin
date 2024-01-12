@@ -26,9 +26,11 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.types.FirImplicitTypeRef
 import org.jetbrains.kotlin.fir.util.setMultimapOf
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 
 internal object LLFirImplicitTypesLazyResolver : LLFirLazyResolver(FirResolvePhase.IMPLICIT_TYPES_BODY_RESOLVE) {
     override fun resolve(
@@ -47,7 +49,7 @@ internal object LLFirImplicitTypesLazyResolver : LLFirLazyResolver(FirResolvePha
     }
 }
 
-internal class LLImplicitBodyResolveComputationSession : ImplicitBodyResolveComputationSession() {
+internal class LLImplicitBodyResolveComputationSession : ImplicitBodyResolveComputationSession(), FirJumpingResolveSession {
     /**
      * The symbol on which foreign annotations will be postponed
      *
@@ -105,6 +107,17 @@ internal class LLImplicitBodyResolveComputationSession : ImplicitBodyResolveComp
     fun postponedSymbols(target: FirCallableDeclaration): Collection<FirBasedSymbol<*>> {
         return postponedSymbols[target.symbol]
     }
+
+    override val states: MutableList<FirInProcessOfResolvingToJumpingPhaseState> = mutableListOf()
+
+    private var cycledSymbol: FirCallableSymbol<*>? = null
+
+    fun pushCycledSymbol(symbol: FirCallableSymbol<*>) {
+        requireWithAttachment(cycledSymbol == null, { "Nested recursion is not allowed" })
+        cycledSymbol = symbol
+    }
+
+    fun popCycledSymbol(): FirCallableSymbol<*>? = cycledSymbol?.also { cycledSymbol = null }
 }
 
 internal class LLFirImplicitBodyTargetResolver(
@@ -137,6 +150,16 @@ internal class LLFirImplicitBodyTargetResolver(
             llImplicitBodyResolveComputationSession.postponeForeignAnnotationResolution(symbol)
             return annotationCall
         }
+    }
+
+    override val jumpingResolveSession: FirJumpingResolveSession get() = llImplicitBodyResolveComputationSession
+
+    override fun handleResolutionCycle(target: FirElementWithResolveState) {
+        requireWithAttachment(target is FirCallableDeclaration, { "Resolution cycle is supposed to be only for callable declaration" }) {
+            withFirEntry("target", target)
+        }
+
+        llImplicitBodyResolveComputationSession.pushCycledSymbol(target.symbol)
     }
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {

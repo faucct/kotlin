@@ -58,7 +58,7 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
     lockProvider: LLFirLockProvider,
     scopeSession: ScopeSession,
     computationSession: LLFirCompilerRequiredAnnotationsComputationSession? = null,
-) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.COMPILER_REQUIRED_ANNOTATIONS, isJumpingPhase = false) {
+) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.COMPILER_REQUIRED_ANNOTATIONS) {
     inner class LLFirCompilerRequiredAnnotationsComputationSession : CompilerRequiredAnnotationsComputationSession() {
         override fun resolveAnnotationSymbol(symbol: FirRegularClassSymbol, scopeSession: ScopeSession) {
             val regularClass = symbol.fir
@@ -134,7 +134,7 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
 
         // 4. Exit if there are no applicable annotations, so we can just update the phase
         if (annotationTransformer.isNothingToResolve()) {
-            return performCustomResolveUnderLock(target) {
+            return performCustomResolveUnderNonJumpingWriteLock(target) {
                 // just update deprecations
                 annotationTransformer.publishResult(target)
             }
@@ -150,7 +150,7 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
         annotationTransformer.calculateDeprecations(target)
 
         // 8. Publish result
-        performCustomResolveUnderLock(target) {
+        performCustomResolveUnderNonJumpingWriteLock(target) {
             annotationTransformer.publishResult(target)
         }
     }

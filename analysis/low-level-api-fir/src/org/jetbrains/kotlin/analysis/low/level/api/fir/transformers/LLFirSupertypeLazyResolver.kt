@@ -65,7 +65,7 @@ private class LLFirSuperTypeTargetResolver(
     private val scopeSession: ScopeSession,
     private val supertypeComputationSession: LLFirSupertypeComputationSession = LLFirSupertypeComputationSession(target.session),
     private val visitedElements: MutableSet<FirElementWithResolveState> = hashSetOf(),
-) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.SUPER_TYPES, isJumpingPhase = false) {
+) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.SUPER_TYPES) {
     private val supertypeResolver = object : FirSupertypeResolverVisitor(
         session = resolveTargetSession,
         supertypeComputationSession = supertypeComputationSession,
@@ -123,7 +123,7 @@ private class LLFirSuperTypeTargetResolver(
                 superTypeUpdater = { target.replaceExpandedTypeRef(it.single()) },
             )
             else -> {
-                performCustomResolveUnderLock(target) {
+                performCustomResolveUnderNonJumpingWriteLock(target) {
                     // just update the phase
                 }
             }
@@ -175,7 +175,7 @@ private class LLFirSuperTypeTargetResolver(
         val resultedTypeRefs = loopedSuperTypeRefs ?: resolvedSuperTypeRefs
 
         // 5. Publish the result
-        performCustomResolveUnderLock(declaration) {
+        performCustomResolveUnderNonJumpingWriteLock(declaration) {
             superTypeUpdater(resultedTypeRefs)
         }
     }

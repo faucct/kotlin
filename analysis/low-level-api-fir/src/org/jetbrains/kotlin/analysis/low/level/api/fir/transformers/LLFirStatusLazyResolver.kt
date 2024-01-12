@@ -112,7 +112,7 @@ private class LLFirStatusTargetResolver(
     scopeSession: ScopeSession,
     private val statusComputationSession: LLStatusComputationSession = LLStatusComputationSession(target.session),
     private val resolveMode: StatusResolveMode,
-) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.STATUS, isJumpingPhase = false) {
+) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.STATUS) {
     private val transformer = Transformer(resolveTargetSession, scopeSession)
 
     @Deprecated("Should never be called directly, only for override purposes, please use withRegularClass", level = DeprecationLevel.ERROR)
@@ -181,7 +181,7 @@ private class LLFirStatusTargetResolver(
     ) {
         if (target.resolvePhase >= resolverPhase) return
         val overriddenDeclarations = getOverridden(target)
-        performCustomResolveUnderLock(target) {
+        performCustomResolveUnderNonJumpingWriteLock(target) {
             transform(target, overriddenDeclarations)
         }
     }
@@ -202,7 +202,7 @@ private class LLFirStatusTargetResolver(
             statusComputationSession.withClass(firClass, transformer::forceResolveStatusesOfSupertypes)
         }
 
-        performCustomResolveUnderLock(firClass) {
+        performCustomResolveUnderNonJumpingWriteLock(firClass) {
             transformer.transformClassStatus(firClass)
             transformer.transformValueClassRepresentation(firClass)
             transformer.storeClass(firClass) {

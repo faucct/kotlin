@@ -5,21 +5,16 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder
 
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.registry.Registry
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirLazyResolveContractChecker
-import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.llFirSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkCanceled
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.lockWithPCECheck
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.*
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 
 /**
  * Keyed locks provider.
@@ -42,6 +37,8 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
         phase: FirResolvePhase,
         action: () -> Unit,
     ) {
+        if (!implicitPhaseLockEnabled) return action()
+
         val lock = when (phase) {
             FirResolvePhase.IMPLICIT_TYPES_BODY_RESOLVE -> implicitTypesLock
             else -> null
@@ -109,17 +106,7 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
         action: () -> Unit,
     ) {
         checker.lazyResolveToPhaseInside(phase) {
-            target.withCriticalSection(toPhase = phase, updatePhase = updatePhase, action = action)
-        }
-    }
-
-    inline fun withJumpingLock(
-        target: FirElementWithResolveState,
-        phase: FirResolvePhase,
-        action: () -> Unit,
-    ) {
-        checker.lazyResolveToPhaseInside(phase, isJumpingPhase = true) {
-            target.withCriticalSection(toPhase = phase, updatePhase = true, action = action)
+            target.withNonJumpingLock(toPhase = phase, updatePhase = updatePhase, action = action)
         }
     }
 
@@ -143,7 +130,7 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
      *  - If some other thread tries to resolve current [FirElementWithResolveState], it changes `resolveState` and puts the barrier there. Then it awaits on it until the initial thread which hold the lock finishes its job.
      *  - This way, no barrier is used in a case when no contention arise.
      */
-    private inline fun FirElementWithResolveState.withCriticalSection(
+    private inline fun FirElementWithResolveState.withNonJumpingLock(
         toPhase: FirResolvePhase,
         updatePhase: Boolean,
         action: () -> Unit,
@@ -172,7 +159,7 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
                 }
 
                 is FirResolvedToPhaseState -> {
-                    if (!tryLock(toPhase, stateSnapshot)) continue
+                    if (!tryNonJumpingLock(toPhase, stateSnapshot)) continue
 
                     var exceptionOccurred = false
                     try {
@@ -182,10 +169,14 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
                         throw e
                     } finally {
                         val newPhase = if (updatePhase && !exceptionOccurred) toPhase else stateSnapshot.resolvePhase
-                        unlock(toPhase = newPhase)
+                        nonJumpingUnlock(toPhase = newPhase)
                     }
 
                     return
+                }
+
+                is FirInProcessOfResolvingToJumpingPhaseState -> {
+                    errorWithFirSpecificEntries("$stateSnapshot state are not allowed to be inside non-jumping lock", fir = this)
                 }
             }
         }
@@ -201,12 +192,11 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
         toPhase: FirResolvePhase,
         stateSnapshot: FirResolveState,
     ) {
-        val latch = CountDownLatch(1)
-        val newState = FirInProcessOfResolvingToPhaseStateWithBarrier(toPhase, latch)
+        val newState = FirInProcessOfResolvingToPhaseStateWithBarrier(toPhase)
         resolveStateFieldUpdater.compareAndSet(this, stateSnapshot, newState)
     }
 
-    private fun FirElementWithResolveState.tryLock(
+    private fun FirElementWithResolveState.tryNonJumpingLock(
         toPhase: FirResolvePhase,
         stateSnapshot: FirResolveState,
     ): Boolean {
@@ -214,16 +204,122 @@ internal class LLFirLockProvider(private val checker: LLFirLazyResolveContractCh
         return resolveStateFieldUpdater.compareAndSet(this, stateSnapshot, newState)
     }
 
-    private fun FirElementWithResolveState.unlock(toPhase: FirResolvePhase) {
+    private fun FirElementWithResolveState.nonJumpingUnlock(toPhase: FirResolvePhase) {
         when (val stateSnapshotAfter = resolveStateFieldUpdater.getAndSet(this, FirResolvedToPhaseState(toPhase))) {
             is FirInProcessOfResolvingToPhaseStateWithoutBarrier -> {}
             is FirInProcessOfResolvingToPhaseStateWithBarrier -> {
                 stateSnapshotAfter.barrier.countDown()
             }
-            is FirResolvedToPhaseState -> {
-                error("phase is unexpectedly unlocked $stateSnapshotAfter")
+            is FirResolvedToPhaseState, is FirInProcessOfResolvingToJumpingPhaseState -> {
+                errorWithFirSpecificEntries("phase is unexpectedly unlocked $stateSnapshotAfter", fir = this)
             }
         }
+    }
+
+    inline fun withJumpingLock(
+        target: FirElementWithResolveState,
+        phase: FirResolvePhase,
+        session: FirJumpingResolveSession,
+        actionUnderLock: () -> Unit,
+        cycleAction: () -> Unit,
+    ) {
+        checker.lazyResolveToPhaseInside(phase, isJumpingPhase = true) {
+            target.withJumpingLockImpl(phase, session, actionUnderLock, cycleAction)
+        }
+    }
+
+    private inline fun FirElementWithResolveState.withJumpingLockImpl(
+        toPhase: FirResolvePhase,
+        session: FirJumpingResolveSession,
+        actionUnderLock: () -> Unit,
+        cycleAction: () -> Unit,
+    ) {
+        while (true) {
+            checkCanceled()
+
+            @OptIn(ResolveStateAccess::class)
+            val stateSnapshot = resolveState
+            if (stateSnapshot.resolvePhase >= toPhase) {
+                // already resolved by some other thread
+                return
+            }
+
+            when (stateSnapshot) {
+                is FirResolvedToPhaseState -> {
+                    if (!tryJumpingLock(toPhase, stateSnapshot, session)) continue
+
+                    var exceptionOccurred = false
+                    try {
+                        actionUnderLock()
+                    } catch (e: Throwable) {
+                        exceptionOccurred = true
+                        throw e
+                    } finally {
+                        val newPhase = if (!exceptionOccurred) toPhase else stateSnapshot.resolvePhase
+                        jumpingUnlock(toPhase = newPhase, session)
+                    }
+
+                    return
+                }
+
+                is FirInProcessOfResolvingToJumpingPhaseState -> {
+                    val previousState = session.states.lastOrNull()
+                    if (previousState != null) {
+                        // Check for multi-thread cycles
+                        // all writes to waitingFor will be consistent, as it is the last write if we have cycle
+                        previousState.waitingFor = stateSnapshot
+                        var next: FirInProcessOfResolvingToJumpingPhaseState? = stateSnapshot
+                        while (next != null) {
+                            if (next === previousState) {
+                                previousState.waitingFor = null
+
+                                // Do I need it???
+//                                previousState.latch.countDown()
+
+                                return cycleAction()
+                            }
+
+                            next = next.waitingFor
+                        }
+                    }
+
+                    try {
+                        stateSnapshot.latch.await(DEFAULT_LOCKING_INTERVAL, TimeUnit.MILLISECONDS)
+                    } finally {
+                        previousState?.waitingFor = null
+                    }
+                }
+
+                is FirInProcessOfResolvingToPhaseStateWithoutBarrier, is FirInProcessOfResolvingToPhaseStateWithBarrier -> {
+                    errorWithFirSpecificEntries("$stateSnapshot state are not allowed to be inside non-jumping lock", fir = this)
+                }
+            }
+        }
+    }
+
+    private fun FirElementWithResolveState.tryJumpingLock(
+        toPhase: FirResolvePhase,
+        stateSnapshot: FirResolveState,
+        session: FirJumpingResolveSession,
+    ): Boolean {
+        val newState = FirInProcessOfResolvingToJumpingPhaseState(toPhase)
+        val isSucceed = resolveStateFieldUpdater.compareAndSet(this, stateSnapshot, newState)
+        if (!isSucceed) return false
+
+        session.states.lastOrNull()?.waitingFor = newState
+        session.states += newState
+
+        return true
+    }
+
+    private fun FirElementWithResolveState.jumpingUnlock(toPhase: FirResolvePhase, session: FirJumpingResolveSession) {
+        val currentState = session.states.removeLast()
+        val prevState = session.states.lastOrNull()
+        require(prevState == null || prevState.waitingFor == currentState)
+        prevState?.waitingFor = null
+
+        resolveStateFieldUpdater.set(this, FirResolvedToPhaseState(toPhase))
+        currentState.latch.countDown()
     }
 }
 
@@ -235,6 +331,10 @@ private val resolveStateFieldUpdater = AtomicReferenceFieldUpdater.newUpdater(
 
 private val globalLockEnabled: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
     Registry.`is`("kotlin.parallel.resolve.under.global.lock", false)
+}
+
+private val implicitPhaseLockEnabled: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    Registry.`is`("kotlin.implicit.resolve.phase.under.global.lock", false)
 }
 
 private const val DEFAULT_LOCKING_INTERVAL = 50L

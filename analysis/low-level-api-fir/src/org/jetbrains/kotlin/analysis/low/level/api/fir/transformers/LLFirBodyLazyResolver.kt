@@ -130,7 +130,7 @@ private class LLFirBodyTargetResolver(
 
                 // resolve class CFG graph here, to do this we need to have property & init blocks resoled
                 resolveMembersForControlFlowGraph(target)
-                performCustomResolveUnderLock(target) {
+                performCustomResolveUnderNonJumpingWriteLock(target) {
                     calculateControlFlowGraph(target)
                 }
 
@@ -143,7 +143,7 @@ private class LLFirBodyTargetResolver(
 
                 // resolve file CFG graph here, to do this we need to have property blocks resoled
                 resolveMembersForControlFlowGraph(target)
-                performCustomResolveUnderLock(target) {
+                performCustomResolveUnderNonJumpingWriteLock(target) {
                     calculateControlFlowGraph(target)
                 }
 
@@ -157,7 +157,7 @@ private class LLFirBodyTargetResolver(
             }
             is FirCodeFragment -> {
                 resolveCodeFragmentContext(target)
-                performCustomResolveUnderLock(target) {
+                performCustomResolveUnderNonJumpingWriteLock(target) {
                     resolve(target, BodyStateKeepers.CODE_FRAGMENT)
                 }
 

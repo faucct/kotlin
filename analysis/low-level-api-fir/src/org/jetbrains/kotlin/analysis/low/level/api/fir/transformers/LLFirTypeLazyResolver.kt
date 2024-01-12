@@ -89,7 +89,7 @@ private class LLFirTypeTargetResolver(
     override fun withRegularClassImpl(firClass: FirRegularClass, action: () -> Unit) {
         firClass.lazyResolveToPhase(resolverPhase.previous)
         transformer.withClassDeclarationCleanup(firClass) {
-            performCustomResolveUnderLock(firClass) {
+            performCustomResolveUnderNonJumpingWriteLock(firClass) {
                 resolveClassTypes(firClass)
             }
 

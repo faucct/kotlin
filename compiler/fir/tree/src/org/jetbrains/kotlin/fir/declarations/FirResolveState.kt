@@ -99,10 +99,9 @@ class FirInProcessOfResolvingToPhaseStateWithoutBarrier private constructor(
  *
  * @see FirResolveState
  */
-class FirInProcessOfResolvingToPhaseStateWithBarrier(
-    override val resolvingTo: FirResolvePhase,
-    val barrier: CountDownLatch,
-) : FirInProcessOfResolvingToPhaseState() {
+class FirInProcessOfResolvingToPhaseStateWithBarrier(override val resolvingTo: FirResolvePhase) : FirInProcessOfResolvingToPhaseState() {
+    val barrier: CountDownLatch = CountDownLatch(1)
+
     init {
         require(resolvingTo != FirResolvePhase.RAW_FIR) {
             "Cannot resolve to ${FirResolvePhase.RAW_FIR} as it's a first phase"
@@ -110,4 +109,17 @@ class FirInProcessOfResolvingToPhaseStateWithBarrier(
     }
 
     override fun toString(): String = "ResolvingToWithBarrier($resolvingTo)"
+}
+
+class FirInProcessOfResolvingToJumpingPhaseState(override val resolvingTo: FirResolvePhase) : FirInProcessOfResolvingToPhaseState() {
+    val latch = CountDownLatch(1)
+
+    @Volatile
+    var waitingFor: FirInProcessOfResolvingToJumpingPhaseState? = null
+
+    override fun toString(): String = "ResolvingJumpingTo($resolvingTo)"
+}
+
+interface FirJumpingResolveSession {
+    val states: MutableList<FirInProcessOfResolvingToJumpingPhaseState>
 }
