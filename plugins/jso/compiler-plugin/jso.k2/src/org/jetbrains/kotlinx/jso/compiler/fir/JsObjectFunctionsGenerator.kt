@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.builder.buildImplicitThisReference
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
 import org.jetbrains.kotlin.fir.resolve.defaultType
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
@@ -49,6 +50,7 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlinx.jso.compiler.fir.services.jsObjectPropertiesProvider
 import org.jetbrains.kotlinx.jso.compiler.resolve.JsSimpleObjectPluginKey
+import org.jetbrains.kotlinx.jso.compiler.resolve.StandardIds
 
 /**
  * The extension generate a synthetic factory and copy-method for an `external interface` annotated with @JsSimpleObject
@@ -60,6 +62,7 @@ import org.jetbrains.kotlinx.jso.compiler.resolve.JsSimpleObjectPluginKey
  * @JsSimpleObject
  * external interface Admin {
  *   val chat: Chat
+ *   val email: String?
  * }
  * ```
  *
@@ -68,21 +71,26 @@ import org.jetbrains.kotlinx.jso.compiler.resolve.JsSimpleObjectPluginKey
  * external interface Admin {
  *   val chat: Chat
  *
- *  inline fun copy(chat: Chat = this.chat, name: String = this.name): Admin =
+ *  inline fun copy(chat: Chat = this.chat, email: String = this.email): Admin =
  *      Admin.Companion.invoke(chat, name)
  *
  *   companion object {
- *      inline operator fun invoke(chat: Chat, name: String): Admin =
+ *      inline operator fun invoke(chat: Chat, email: String? = VOID): Admin =
  *          js("{ chat: chat, name: name }")
  *   }
  * }
  * ```
  */
 class JsObjectFunctionsGenerator(session: FirSession) : FirDeclarationGenerationExtension(session) {
-    private val predicateBasedProvider = session.predicateBasedProvider
+    private val voidPropertySymbol by lazy {
+        session.symbolProvider
+            .getTopLevelPropertySymbols(StandardIds.KOTLIN_JS_FQN, StandardIds.VOID_PROPERTY_NAME)
+            .single()
+    }
 
     private val matchedInterfaces by lazy {
-        predicateBasedProvider.getSymbolsByPredicate(JsObjectPredicates.AnnotatedWithJsSimpleObject.LOOKUP)
+        session.predicateBasedProvider
+            .getSymbolsByPredicate(JsObjectPredicates.AnnotatedWithJsSimpleObject.LOOKUP)
             .filterIsInstance<FirRegularClassSymbol>()
             .toSet()
     }
@@ -106,7 +114,7 @@ class JsObjectFunctionsGenerator(session: FirSession) : FirDeclarationGeneration
         return if (
             owner is FirRegularClassSymbol &&
             owner.isJsObject &&
-            name == org.jetbrains.kotlin.name.SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT
+            name == SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT
         ) generateCompanionDeclaration(owner)
         else null
     }
@@ -171,12 +179,13 @@ class JsObjectFunctionsGenerator(session: FirSession) : FirDeclarationGeneration
     ): FirSimpleFunction {
         return createJsObjectFunction(callableId, parent, jsSimpleObjectInterface) {
             runIf(resolvedReturnTypeRef.type.isNullable) {
-                buildConstExpression(
-                    source = null,
-                    value = null,
-                    kind = ConstantValueKind.Null,
-                    setType = true
-                )
+                buildPropertyAccessExpression {
+                    calleeReference = buildResolvedNamedReference {
+                        name = StandardIds.VOID_PROPERTY_NAME
+                        resolvedSymbol = voidPropertySymbol
+                    }
+                    coneTypeOrNull = voidPropertySymbol.resolvedReturnType
+                }
             }
         }
     }
@@ -186,18 +195,13 @@ class JsObjectFunctionsGenerator(session: FirSession) : FirDeclarationGeneration
         parent: FirClassSymbol<*>,
         jsSimpleObjectInterface: FirRegularClassSymbol,
     ): FirSimpleFunction {
-        val interfaceType = jsSimpleObjectInterface.defaultType()
         return createJsObjectFunction(callableId, parent, jsSimpleObjectInterface) {
             buildPropertyAccessExpression {
-                dispatchReceiver = buildThisReceiverExpression {
-                    calleeReference = buildImplicitThisReference { boundSymbol = jsSimpleObjectInterface }
-                    coneTypeOrNull = interfaceType
-                }
                 calleeReference = buildResolvedNamedReference {
-                    name = this@createJsObjectFunction.name
-                    resolvedSymbol = this@createJsObjectFunction
+                    name = StandardIds.VOID_PROPERTY_NAME
+                    resolvedSymbol = voidPropertySymbol
                 }
-                coneTypeOrNull = resolvedReturnType
+                coneTypeOrNull = voidPropertySymbol.resolvedReturnType
             }
         }
     }
