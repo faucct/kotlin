@@ -56,7 +56,7 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
         }
     }
 
-    private fun runWhichPod(): String {
+    private fun podExecutable(): String = PropertiesProvider(project).cocoapodsExecutablePath ?: run {
         val checkPodCommand = listOf("which", "pod")
         val output = runCommand(checkPodCommand, logger, { retCode, error, process ->
             if (error.isNotBlank()) {
@@ -66,15 +66,13 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
             }
         })
 
-        return if (output.isNotBlank()) "pod" else throw IllegalStateException(missingPodsError())
+        output.lines().joinToString("").ifBlank {
+            throw IllegalStateException(missingPodsError())
+        }
     }
 
     private fun runPodInstall(updateRepo: Boolean): String {
-        val podExecutable = PropertiesProvider(project).cocoapodsExecutablePath ?: runWhichPod()
-        // env is used here to work around the JVM PATH caching when spawning a child process with custom environment, i.e. LC_ALL
-        // The caching causes the ProcessBuilder to ignore changes in the PATH that may occur on incremental runs of the Gradle daemon
-        // KT-60394
-        val podInstallCommand = listOfNotNull("env", podExecutable, "install", if (updateRepo) "--repo-update" else null)
+        val podInstallCommand = listOfNotNull(podExecutable(), "install", if (updateRepo) "--repo-update" else null)
 
         return runCommandWithFallback(podInstallCommand,
                                       logger,
@@ -102,11 +100,16 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
                |        Full command: $command
                |        
                |        Possible reason: CocoaPods is not installed
-               |        Please check that CocoaPods v1.10 or above is installed.
+               |        Please check that CocoaPods v1.14 or above is installed.
                |        
                |        To check CocoaPods version type 'pod --version' in the terminal
                |        
                |        To install CocoaPods execute 'sudo gem install cocoapods'
+               |        
+               |        Note: Using 'sudo' might lead to permission issues. If you encounter problems,
+               |        consider using a Ruby version manager like RVM or rbenv to manage your Ruby environment.
+               |
+               |        For more information, refer to the documentation: https://jb.gg/f1cvzo
                |
             """.trimMargin()
         } else {
@@ -127,11 +130,11 @@ abstract class AbstractPodInstallTask : CocoapodsTask() {
                   |
                   |        If CocoaPods is already installed and not in your PATH, you can define the
                   |        CocoaPods executable path in the local.properties file by executing the following:
-                  |        ${'$'} echo -e "kotlin.cocoapods.bin=${'$'}(which pod)" >> local.properties
+                  |        ${'$'} echo -e "kotlin.apple.cocoapods.bin=${'$'}(which pod)" >> local.properties
                   |
                   |        For more information, refer to the documentation: https://jb.gg/f1cvzo
                   |        
-               """.trimIndent()
+               """.trimMargin()
     }
 
     abstract fun handleError(retCode: Int, error: String, process: Process): String?
