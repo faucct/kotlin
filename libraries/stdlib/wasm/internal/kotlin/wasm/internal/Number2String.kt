@@ -46,8 +46,6 @@ private fun digitToChar(input: Int): Char {
 
 internal fun itoa32(inputValue: Int): String {
     if (inputValue == 0) return "0"
-    // We can't represent abs(Int.MIN_VALUE), so just hardcode it here
-    if (inputValue == Int.MIN_VALUE) return "-2147483648"
 
     val isNegative = inputValue < 0
     val absValue = if (isNegative) -inputValue else inputValue
@@ -122,9 +120,6 @@ private fun decimalCount32(value: UInt): Int {
 internal fun itoa64(inputValue: Long): String {
     if (inputValue in Int.MIN_VALUE..Int.MAX_VALUE)
         return itoa32(inputValue.toInt())
-
-    // We can't represent abs(Long.MIN_VALUE), so just hardcode it here
-    if (inputValue == Long.MIN_VALUE) return "-9223372036854775808"
 
     val isNegative = inputValue < 0
     val absValue = if (isNegative) -inputValue else inputValue
