@@ -36,7 +36,7 @@ class ExpressionCheckersDiagnosticComponent(
     }
 
     override fun <T> visitLiteralExpression(literalExpression: FirLiteralExpression<T>, data: CheckerContext) {
-        checkers.allConstExpressionCheckers.check(literalExpression, data)
+        checkers.allLiteralExpressionCheckers.check(literalExpression, data)
     }
 
     override fun visitAnnotation(annotation: FirAnnotation, data: CheckerContext) {
