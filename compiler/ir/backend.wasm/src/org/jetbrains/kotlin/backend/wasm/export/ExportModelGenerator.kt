@@ -103,7 +103,7 @@ class ExportModelGenerator(val context: WasmBackendContext) {
             collectAllTheDeclarationsToExport(modules).mapNotNull(::exportDeclaration)
         )
 
-    private fun exportDeclaration(declaration: IrDeclaration): ExportedDeclaration?? {
+    private fun exportDeclaration(declaration: IrDeclaration): ExportedDeclaration? {
         return when (declaration) {
             is IrSimpleFunction -> exportFunction(declaration)
             is IrClass -> exportClass(declaration)
