@@ -4929,6 +4929,84 @@ public class FirNativeCodegenBoxTestGenerated extends AbstractNativeCodegenBoxTe
                 }
 
                 @Test
+                @TestMetadata("pinnedByteArrayAddressOf.kt")
+                public void testPinnedByteArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedByteArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedCharArrayAddressOf.kt")
+                public void testPinnedCharArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedCharArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedDoubleArrayAddressOf.kt")
+                public void testPinnedDoubleArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedDoubleArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedFloatArrayAddressOf.kt")
+                public void testPinnedFloatArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedFloatArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedIntArrayAddressOf.kt")
+                public void testPinnedIntArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedIntArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedLongArrayAddressOf.kt")
+                public void testPinnedLongArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedLongArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedShortArrayAddressOf.kt")
+                public void testPinnedShortArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedShortArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedStringAddressOf.kt")
+                public void testPinnedStringAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedStringAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedUByteArrayAddressOf.kt")
+                public void testPinnedUByteArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedUByteArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedUIntArrayAddressOf.kt")
+                public void testPinnedUIntArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedUIntArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedULongArrayAddressOf.kt")
+                public void testPinnedULongArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedULongArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("pinnedUShortArrayAddressOf.kt")
+                public void testPinnedUShortArrayAddressOf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/pinnedUShortArrayAddressOf.kt");
+                }
+
+                @Test
+                @TestMetadata("statbuf.kt")
+                public void testStatbuf() throws Exception {
+                    runTest("compiler/testData/codegen/box/cinterop/basics/statbuf.kt");
+                }
+
+                @Test
                 @TestMetadata("structAnonRecordMember_ExplicitAlignment.kt")
                 public void testStructAnonRecordMember_ExplicitAlignment() throws Exception {
                     runTest("compiler/testData/codegen/box/cinterop/basics/structAnonRecordMember_ExplicitAlignment.kt");

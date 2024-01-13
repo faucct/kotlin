@@ -44,9 +44,27 @@ public class NativeStandaloneTestGenerated extends AbstractNativeBlackBoxTest {
         }
 
         @Test
+        @TestMetadata("fprintf.kt")
+        public void testFprintf() throws Exception {
+            runTest("native/native.tests/testData/standalone/console/fprintf.kt");
+        }
+
+        @Test
+        @TestMetadata("printf.kt")
+        public void testPrintf() throws Exception {
+            runTest("native/native.tests/testData/standalone/console/printf.kt");
+        }
+
+        @Test
         @TestMetadata("println.kt")
         public void testPrintln() throws Exception {
             runTest("native/native.tests/testData/standalone/console/println.kt");
+        }
+
+        @Test
+        @TestMetadata("puts.kt")
+        public void testPuts() throws Exception {
+            runTest("native/native.tests/testData/standalone/console/puts.kt");
         }
 
         @Test
@@ -217,6 +235,43 @@ public class NativeStandaloneTestGenerated extends AbstractNativeBlackBoxTest {
         @TestMetadata("unhandledExceptionHookWithProcess.kt")
         public void testUnhandledExceptionHookWithProcess() throws Exception {
             runTest("native/native.tests/testData/standalone/termination/unhandledExceptionHookWithProcess.kt");
+        }
+    }
+
+    @Nested
+    @TestMetadata("native/native.tests/testData/standalone/threadStates")
+    @TestDataPath("$PROJECT_ROOT")
+    @Tag("standalone")
+    @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE_NO_TR")
+    @UseStandardTestCaseGroupProvider()
+    public class ThreadStates {
+        @Test
+        public void testAllFilesPresentInThreadStates() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("native/native.tests/testData/standalone/threadStates"), Pattern.compile("^(.+)\\.kt$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("callbacksWithExceptions.kt")
+        public void testCallbacksWithExceptions() throws Exception {
+            runTest("native/native.tests/testData/standalone/threadStates/callbacksWithExceptions.kt");
+        }
+
+        @Test
+        @TestMetadata("threadStates.kt")
+        public void testThreadStates() throws Exception {
+            runTest("native/native.tests/testData/standalone/threadStates/threadStates.kt");
+        }
+
+        @Test
+        @TestMetadata("unhandledException.kt")
+        public void testUnhandledException() throws Exception {
+            runTest("native/native.tests/testData/standalone/threadStates/unhandledException.kt");
+        }
+
+        @Test
+        @TestMetadata("unhandledExceptionInForeignThread.kt")
+        public void testUnhandledExceptionInForeignThread() throws Exception {
+            runTest("native/native.tests/testData/standalone/threadStates/unhandledExceptionInForeignThread.kt");
         }
     }
 }
